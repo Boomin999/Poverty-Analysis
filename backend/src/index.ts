@@ -1,6 +1,8 @@
 import { createApp } from './app.ts';
 import { env } from './config/env.ts';
+import { initializeDatabase } from './db/init.ts';
 
+initializeDatabase();
 const app = createApp();
 
 app.listen(env.port, () => {

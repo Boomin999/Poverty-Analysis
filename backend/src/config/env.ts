@@ -8,6 +8,7 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const srcDirectory = path.resolve(currentDirectory, '..');
 const backendRoot = path.resolve(srcDirectory, '..');
 const dataDirectory = path.join(backendRoot, 'data');
+const databaseDirectory = path.join(dataDirectory, 'database');
 
 export const env = {
   mode: process.env.NODE_ENV ?? 'development',
@@ -15,6 +16,8 @@ export const env = {
   paths: {
     backendRoot,
     data: dataDirectory,
+    database: databaseDirectory,
+    sqlite: path.join(databaseDirectory, 'poverty-insights.sqlite'),
     raw: path.join(dataDirectory, 'raw'),
     processed: path.join(dataDirectory, 'processed'),
     spreadsheets: path.join(dataDirectory, 'raw', 'spreadsheets'),

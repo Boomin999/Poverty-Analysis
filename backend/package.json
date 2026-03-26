@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --experimental-strip-types src/index.ts",
+    "db:init": "node --experimental-strip-types src/db/cli.ts init",
+    "db:reset": "node --experimental-strip-types src/db/cli.ts reset",
+    "db:status": "node --experimental-strip-types src/db/cli.ts status",
     "lint": "eslint . && tsc --noEmit -p tsconfig.json",
     "format": "prettier --write ."
   },

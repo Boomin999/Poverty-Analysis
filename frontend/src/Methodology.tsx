@@ -1,153 +1,282 @@
 import React from 'react';
-import { Layout } from './components/Layout';
-import { Headline, Card, Label } from './components/UI';
 import {
   BarChart3,
-  ChevronRight,
   CheckCircle2,
   Database,
+  LineChart,
   Map,
+  Target,
   Workflow,
 } from 'lucide-react';
+import { Layout } from './components/Layout';
+import { Card, Headline, Label } from './components/UI';
 
-const methodologyPillars = [
+const sourceRows = [
   {
-    icon: Database,
-    title: 'Data Sources',
-    description:
-      'The project combines official poverty reports from Statistics Mauritius with supporting indicators from World Bank datasets and locally prepared spreadsheets.',
-    bullets: [
-      'Statistics Mauritius poverty analysis reports',
-      'Mauritius poverty dataset and RDI workbooks',
-      'World Bank indicator time series for Mauritius',
-    ],
+    source: 'Statistics Mauritius',
+    dataUsed: 'Official poverty reports, household poverty indicators, and cleaned poverty workbooks.',
+    whyChosen:
+      'This is the main official source for Mauritius poverty measurement, so it provides the most credible national trend values and demographic poverty breakdowns.',
   },
   {
-    icon: BarChart3,
-    title: 'Analytical Methods',
-    description:
-      'The study focuses on descriptive trend analysis, correlation review, regression modelling, and district-level Relative Development Index analysis to explain poverty patterns over time.',
-    bullets: [
-      'Relative poverty trend analysis',
-      'Regression and predictor comparison',
-      'District and RDI-based interpretation',
-    ],
+    source: 'World Bank',
+    dataUsed: 'Macroeconomic indicators such as GDP, unemployment, inflation, and supporting development variables.',
+    whyChosen:
+      'These indicators provide external economic context and make it possible to compare poverty changes with broader development conditions.',
   },
   {
-    icon: Map,
-    title: 'Geospatial Layer',
-    description:
-      'District and regional files are cleaned and aligned with map boundaries so poverty-related indicators can be explored geographically, including Mauritius and Rodrigues outputs.',
-    bullets: [
-      'District name normalization',
-      'GeoJSON mapping alignment',
-      'Regional comparison and map outputs',
-    ],
-  },
-  {
-    icon: Workflow,
-    title: 'System Architecture',
-    description:
-      'The final system separates frontend presentation, backend API handling, processed data files, and shared response contracts so the dashboard can grow beyond static mock pages.',
-    bullets: [
-      'Frontend dashboard and dataset explorer',
-      'Backend API handlers and services',
-      'Processed JSON and shared API contracts',
-    ],
+    source: 'RDI datasets',
+    dataUsed: 'District, ward, and village-level Relative Development Index values and comparison files.',
+    whyChosen:
+      'These files support regional analysis and help explain spatial inequality beyond the national poverty average.',
   },
 ];
 
-const processSteps = [
+const cleaningSteps = [
+  'Column names and worksheet fields were standardized so values from different files could be merged consistently.',
+  'District and area names were normalized to solve spelling, case, and accent differences before regional joins.',
+  'Time-series values were reformatted into consistent period labels such as 1996/97, 2001/02, and 2023.',
+  'Irrelevant, blank, or incomplete rows were excluded when they could not support analysis safely.',
+  'Selected outputs were reshaped into long-format and API-friendly structures for use in the dashboard, analytics, and map pages.',
+];
+
+const capabilities = [
+  'Poverty trends across survey years',
+  'Indicator comparison between poverty and macroeconomic variables',
+  'Correlation analysis for exploratory relationships',
+  'Regression insights using the cleaned regression dataset',
+  'Regional and district-level RDI analysis',
+  'Map-based insights for geographic interpretation',
+];
+
+const policyUses = [
+  'Government agencies can identify which population groups and regions remain most exposed to poverty.',
+  'NGOs can target community interventions toward children, unemployed groups, and low-RDI areas.',
+  'Researchers and students can use the platform to compare trends, test relationships, and review supporting datasets in one place.',
+  'Decision-makers can use the system to move from national averages toward more targeted regional and demographic action.',
+];
+
+const evaluationPoints = [
   {
-    title: 'Collect and Review Source Material',
-    description:
-      'Official reports, spreadsheets, and indicator files are gathered and inspected to identify the poverty variables, time periods, and district-level fields required for analysis.',
+    title: 'Target Users',
+    detail: 'Students, researchers, policymakers, and development practitioners who need a structured view of poverty data in Mauritius.',
   },
   {
-    title: 'Clean and Standardize the Data',
-    description:
-      'Variable names, district labels, and time-series fields are cleaned so data from different files can be compared consistently and reused in charts, analytics, and maps.',
+    title: 'Accuracy',
+    detail: 'The system is evaluated by how closely the presented values match official Statistics Mauritius and cleaned supporting datasets.',
   },
   {
-    title: 'Run Statistical and District Analysis',
-    description:
-      'The project evaluates poverty trends, compares economic indicators, and studies district/RDI patterns to understand how poverty changes over time and across regions.',
+    title: 'Usability',
+    detail: 'The interface is evaluated by whether users can move between dashboard, analytics, datasets, and maps without needing raw spreadsheets.',
   },
   {
-    title: 'Prepare Application Data Products',
-    description:
-      'Processed outputs are shaped into dashboard-friendly and API-friendly payloads, making the frontend charts, previews, and chat responses easier to maintain.',
+    title: 'Clarity',
+    detail: 'The project is evaluated by whether charts, explanations, and methodology sections are understandable to non-specialist users.',
   },
   {
-    title: 'Deliver Through Dashboard and API',
+    title: 'Regression Fit',
+    detail: 'The current regression workflow reports an R² of about 0.90, which indicates a strong fit within the small available time series, while still requiring careful interpretation.',
+  },
+];
+
+const methodCards = [
+  {
+    icon: LineChart,
+    title: 'Trend Analysis',
     description:
-      'The final interface presents poverty trends, dataset previews, and explanation layers through the React frontend and backend endpoints rather than through raw files alone.',
+      'Poverty rates, number of persons in poverty, and rolling averages are studied across survey years to identify change over time.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Correlation Analysis',
+    description:
+      'Correlation is used to explore how poverty moves with GDP, unemployment, inflation, and Gini before drawing stronger model-based conclusions.',
+  },
+  {
+    icon: Target,
+    title: 'Regression Analysis',
+    description:
+      'Regression is used to estimate how selected economic variables relate to poverty and to compare actual and predicted poverty values.',
+  },
+  {
+    icon: Map,
+    title: 'Regional Analysis',
+    description:
+      'RDI and district-level comparisons are used to highlight spatial inequality and identify areas that perform better or worse than others.',
   },
 ];
 
 const Methodology = () => {
   return (
     <Layout>
-      <div className="space-y-12 max-w-5xl mx-auto">
+      <div className="mx-auto max-w-6xl space-y-10">
         <section className="text-center">
           <Label className="mb-4 block">Research Methodology</Label>
-          <Headline level={1} className="mb-6">Methodology and System Design</Headline>
-          <p className="text-lg text-on-surface/60 leading-relaxed max-w-3xl mx-auto">
-            This project studies poverty in Mauritius by combining official reports, cleaned indicator datasets,
-            regression-based analysis, district/RDI interpretation, geospatial mapping, and a dashboard/API delivery layer.
+          <Headline level={1} className="mb-6">Methodology, Data Sources, and Evaluation</Headline>
+          <p className="mx-auto max-w-4xl text-lg leading-relaxed text-on-surface/60">
+            This project investigates poverty in Mauritius through official poverty indicators, supporting economic variables,
+            Relative Development Index data, statistical analysis, and a dashboard-based delivery layer designed to make the
+            results easier to interpret and reuse.
           </p>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {methodologyPillars.map((pillar) => {
-            const Icon = pillar.icon;
-
-            return (
-              <Card key={pillar.title} className="p-8 border border-outline-variant hover:border-primary/20 transition-all">
-                <div className="p-3 bg-primary/10 rounded-xl text-primary w-fit mb-6">
-                  <Icon size={24} />
-                </div>
-                <Headline level={3} className="mb-4">{pillar.title}</Headline>
-                <p className="text-sm text-on-surface/60 leading-relaxed mb-6">
-                  {pillar.description}
-                </p>
-                <ul className="space-y-3">
-                  {pillar.bullets.map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-xs font-bold text-on-surface/70">
-                      <CheckCircle2 size={14} className="text-green-600" /> {item}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            );
-          })}
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="p-6">
+            <div className="mb-4 w-fit rounded-xl bg-primary/10 p-3 text-primary">
+              <Database size={22} />
+            </div>
+            <Headline level={3} className="mb-3">Data Sources</Headline>
+            <p className="text-sm leading-relaxed text-on-surface/60">
+              The system combines official poverty statistics, macroeconomic indicators, and regional development data.
+            </p>
+          </Card>
+          <Card className="p-6">
+            <div className="mb-4 w-fit rounded-xl bg-primary/10 p-3 text-primary">
+              <Workflow size={22} />
+            </div>
+            <Headline level={3} className="mb-3">Data Pipeline</Headline>
+            <p className="text-sm leading-relaxed text-on-surface/60">
+              Raw files are cleaned, standardized, merged, and transformed into backend-ready and dashboard-ready structures.
+            </p>
+          </Card>
+          <Card className="p-6">
+            <div className="mb-4 w-fit rounded-xl bg-primary/10 p-3 text-primary">
+              <BarChart3 size={22} />
+            </div>
+            <Headline level={3} className="mb-3">Analysis Methods</Headline>
+            <p className="text-sm leading-relaxed text-on-surface/60">
+              The analytical layer covers trends, correlation, regression, and regional comparison.
+            </p>
+          </Card>
+          <Card className="p-6">
+            <div className="mb-4 w-fit rounded-xl bg-primary/10 p-3 text-primary">
+              <Target size={22} />
+            </div>
+            <Headline level={3} className="mb-3">Evaluation</Headline>
+            <p className="text-sm leading-relaxed text-on-surface/60">
+              The platform is evaluated for accuracy, clarity, usability, and value to real decision-making contexts.
+            </p>
+          </Card>
         </div>
 
-        <section className="space-y-8">
-          <Headline level={2}>Project Workflow</Headline>
-          <div className="space-y-4">
-            {processSteps.map((step, index) => (
-              <div key={step.title} className="flex items-start gap-6 p-6 bg-surface-container-low rounded-2xl border border-outline-variant group hover:bg-surface-container transition-colors">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold shrink-0">
-                  {index + 1}
+        <Card className="p-6 sm:p-8">
+          <Headline level={2} className="mb-5">Data Sources & Justification</Headline>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-y-3">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-on-surface/45">
+                  <th className="px-4">Source</th>
+                  <th className="px-4">Data Used</th>
+                  <th className="px-4">Why Chosen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourceRows.map((row) => (
+                  <tr key={row.source} className="rounded-2xl bg-surface-container-low">
+                    <td className="rounded-l-2xl px-4 py-4 align-top text-sm font-semibold text-on-surface">
+                      {row.source}
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm leading-relaxed text-on-surface/65">
+                      {row.dataUsed}
+                    </td>
+                    <td className="rounded-r-2xl px-4 py-4 align-top text-sm leading-relaxed text-on-surface/65">
+                      {row.whyChosen}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <Card className="p-6 sm:p-8">
+            <Headline level={2} className="mb-5">Data Preparation and Merging</Headline>
+            <div className="space-y-5">
+              <div>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-on-surface/55">Why These Sources</h3>
+                <p className="text-sm leading-relaxed text-on-surface/65">
+                  Statistics Mauritius gives the project an official national poverty baseline, World Bank indicators add
+                  economic context, and RDI data extends the analysis into the regional dimension. Together they support
+                  both statistical interpretation and policy relevance.
+                </p>
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-on-surface/55">Data Cleaning Steps</h3>
+                <div className="space-y-3">
+                  {cleaningSteps.map((step) => (
+                    <div key={step} className="flex gap-3 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                      <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-green-600" />
+                      <p className="text-sm leading-relaxed text-on-surface/65">{step}</p>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold mb-1 group-hover:text-primary transition-colors">{step.title}</h3>
-                  <p className="text-xs text-on-surface/50 leading-relaxed">{step.description}</p>
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-on-surface/55">Data Merging</h3>
+                <p className="text-sm leading-relaxed text-on-surface/65">
+                  The merged analytical dataset combines the poverty rate with selected explanatory variables such as GDP,
+                  unemployment, inflation, and Gini so that trend, correlation, and regression analysis can be carried out
+                  in one consistent structure.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 sm:p-8">
+            <Headline level={2} className="mb-5">Analysis Methods</Headline>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {methodCards.map((method) => {
+                const Icon = method.icon;
+                return (
+                  <div key={method.title} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                    <div className="mb-3 w-fit rounded-xl bg-primary/10 p-3 text-primary">
+                      <Icon size={20} />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">{method.title}</h3>
+                    <p className="text-sm leading-relaxed text-on-surface/65">{method.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <Card className="p-6 sm:p-8">
+            <Headline level={2} className="mb-5">Analysis Capabilities</Headline>
+            <div className="grid gap-3">
+              {capabilities.map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                  <CheckCircle2 size={16} className="shrink-0 text-green-600" />
+                  <span className="text-sm font-medium text-on-surface/75">{item}</span>
                 </div>
-                <ChevronRight size={16} className="ml-auto text-on-surface/20 group-hover:text-primary transition-colors" />
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-6 sm:p-8">
+            <Headline level={2} className="mb-5">Policy / Actionable Insights</Headline>
+            <div className="space-y-4">
+              {policyUses.map((item) => (
+                <div key={item} className="rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                  <p className="text-sm leading-relaxed text-on-surface/65">{item}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-6 sm:p-8">
+          <Headline level={2} className="mb-5">Evaluation</Headline>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {evaluationPoints.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-on-surface/65">{item.detail}</p>
               </div>
             ))}
           </div>
-        </section>
-
-        <Card variant="recessed" className="p-10 md:p-12">
-          <Headline level={3} className="mb-3">Implementation Note</Headline>
-          <p className="text-sm text-on-surface/60 leading-relaxed">
-            The dashboard is designed as the presentation layer of the dissertation output. It sits on top of processed poverty
-            data, backend API handlers, and shared schemas so the analytical work can be delivered in a structured, reusable,
-            and transparent way rather than as disconnected files only.
-          </p>
         </Card>
       </div>
     </Layout>

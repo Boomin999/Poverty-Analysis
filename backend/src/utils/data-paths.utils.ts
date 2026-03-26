@@ -5,6 +5,10 @@ export function getProcessedDataPath(...segments: string[]) {
   return path.join(env.paths.processed, ...segments);
 }
 
+export function getDatabasePath(...segments: string[]) {
+  return path.join(env.paths.database, ...segments);
+}
+
 export function getRawSpreadsheetPath(...segments: string[]) {
   return path.join(env.paths.spreadsheets, ...segments);
 }
