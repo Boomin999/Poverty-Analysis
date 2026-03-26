@@ -1,15 +1,16 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   variant?: 'default' | 'recessed';
 }
 
-export const Card: React.FC<CardProps> = ({ children, className, variant = 'default' }) => {
+export const Card: React.FC<CardProps> = ({ children, className, variant = 'default', ...props }) => {
   return (
     <div 
+      {...props}
       className={cn(
         "rounded-lg p-8 transition-all duration-300",
         variant === 'default' ? "bg-surface-container-lowest shadow-ambient" : "bg-surface-container-low",

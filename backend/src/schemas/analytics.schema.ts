@@ -6,6 +6,11 @@ export const analyticsResponseSchema = z.object({
   summary: z.string().min(1),
   variables: z.array(z.string().min(1)),
   modelScore: z.number(),
+  regressionOverview: z.object({
+    specification: z.string().min(1),
+    interpretation: z.string().min(1),
+    strongestDriver: z.string().min(1),
+  }),
   keyFindings: z.array(z.string().min(1)),
   correlations: z.array(
     z.object({
@@ -39,5 +44,53 @@ export const analyticsResponseSchema = z.object({
       trendChange: z.number().nullable(),
     }),
   ),
+  actualPredictedSeries: z.array(
+    z.object({
+      period: z.string().min(1),
+      actual: z.number(),
+      predicted: z.number(),
+    }),
+  ),
+  correlationMatrix: z.array(
+    z.object({
+      row: z.string().min(1),
+      column: z.string().min(1),
+      value: z.number(),
+    }),
+  ),
+  scatterSeries: z.array(
+    z.object({
+      variable: z.string().min(1),
+      label: z.string().min(1),
+      unit: z.string().min(1),
+      points: z.array(
+        z.object({
+          x: z.number(),
+          y: z.number(),
+          period: z.string().min(1),
+        }),
+      ),
+      interpolatedPoints: z.array(
+        z.object({
+          x: z.number(),
+          y: z.number(),
+          period: z.string().min(1),
+        }),
+      ),
+      trendLine: z.array(
+        z.object({
+          x: z.number(),
+          y: z.number(),
+        }),
+      ),
+    }),
+  ),
   demographicBreakdowns: z.array(demographicBreakdownSchema),
+  legacyCharts: z.array(
+    z.object({
+      title: z.string().min(1),
+      imagePath: z.string().min(1),
+      caption: z.string().min(1),
+    }),
+  ),
 });

@@ -18,11 +18,16 @@ export type {
 } from './dataset.ts';
 export type { ChatRequest, ChatResponse, ChatSource } from './chat.ts';
 export type {
+  ActualPredictedPoint,
   AnalyticsResponse,
+  AnalyticsChartAsset,
+  CorrelationMatrixCell,
   CorrelationInsight,
   PredictionPoint,
+  RegressionOverview,
   RegressionCoefficient,
   RegressionObservation,
+  ScatterSeries,
 } from './analytics.ts';
 export type { MapAreaHighlight, MapOverview, MapRegion, MapResponse } from './map.ts';
 export type { ApiError } from './common.ts';

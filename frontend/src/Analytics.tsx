@@ -15,18 +15,227 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import type { AnalyticsResponse } from '../../shared/api';
+import type { AnalyticsResponse, CorrelationMatrixCell, ScatterSeries } from '../../shared/api';
 import { fetchAnalytics } from './lib/api';
 import { Layout } from './components/Layout';
 import { Card, Headline, Label } from './components/UI';
 
+function heatmapColor(value: number) {
+  if (value >= 0) {
+    const opacity = Math.min(Math.abs(value), 1);
+    return `rgba(11, 77, 187, ${0.18 + opacity * 0.7})`;
+  }
+
+  const opacity = Math.min(Math.abs(value), 1);
+  return `rgba(180, 83, 9, ${0.18 + opacity * 0.7})`;
+}
+
+function getMatrixValue(matrix: CorrelationMatrixCell[], row: string, column: string) {
+  return matrix.find((cell) => cell.row === row && cell.column === column)?.value ?? null;
+}
+
+function compactLabel(label: string) {
+  return label
+    .replace('GDP per capita', 'GDP\nper capita')
+    .replace('UNEMPLOYMENT', 'UNEMPLOY-\nMENT')
+    .replace('INFLATION', 'INFLA-\nTION')
+    .replace(' ', '\n');
+}
+
+function getNumericDomain(values: number[], paddingRatio = 0.12) {
+  if (values.length === 0) {
+    return [0, 1] as const;
+  }
+
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const span = maxValue - minValue || Math.max(Math.abs(minValue) * 0.1, 1);
+  const padding = span * paddingRatio;
+
+  return [Number((minValue - padding).toFixed(3)), Number((maxValue + padding).toFixed(3))] as const;
+}
+
+function getCorrelationSummary(
+  series: ScatterSeries,
+  correlation: number | null,
+  coefficient: number | null,
+) {
+  const direction = correlation === null ? 'mixed' : correlation >= 0 ? 'positive' : 'negative';
+  const strength =
+    correlation === null
+      ? 'limited'
+      : Math.abs(correlation) >= 0.7
+        ? 'strong'
+        : Math.abs(correlation) >= 0.4
+          ? 'moderate'
+          : 'weak';
+
+  const relationText =
+    direction === 'positive'
+      ? `Higher ${series.label.toLowerCase()} tends to align with higher poverty in this small series.`
+      : direction === 'negative'
+        ? `Higher ${series.label.toLowerCase()} tends to align with lower poverty in this small series.`
+        : `The relationship is not especially clear from the available points.`;
+
+  const coefficientText =
+    coefficient === null
+      ? 'No multiple-regression coefficient is available for this variable in the current response.'
+      : `The multiple-regression coefficient is ${coefficient.toFixed(4)}, which should be read alongside the scatter trend rather than on its own.`;
+
+  return {
+    title: `${strength.charAt(0).toUpperCase()}${strength.slice(1)} ${direction === 'mixed' ? '' : direction} relationship`.trim(),
+    relationText,
+    coefficientText,
+  };
+}
+
+function getVariableInsight(
+  series: ScatterSeries,
+  correlation: number | null,
+  coefficient: number | null,
+) {
+  const relationship =
+    correlation === null
+      ? 'unclear'
+      : Math.abs(correlation) >= 0.7
+        ? correlation > 0
+          ? 'strong positive'
+          : 'strong negative'
+        : Math.abs(correlation) >= 0.4
+          ? correlation > 0
+            ? 'moderate positive'
+            : 'moderate negative'
+          : correlation > 0
+            ? 'weak positive'
+            : 'weak negative';
+
+  const detailByVariable: Record<string, { deduction: string; implication: string }> = {
+    GDP: {
+      deduction:
+        'In this small series, poverty rises alongside GDP per capita instead of falling automatically. That suggests economic growth on its own did not guarantee lower relative poverty across the survey years.',
+      implication:
+        'A policy takeaway is that growth needs distributional reach. If incomes rise unevenly, relative poverty can remain visible even when national output improves.',
+    },
+    UNEMPLOYMENT: {
+      deduction:
+        'The unemployment relationship is negative but fairly weak in this dataset, which means it does not behave like the dominant standalone driver of relative poverty across these years.',
+      implication:
+        'This points to a broader poverty story than labor-market status alone. Household composition, inequality, inflation pressure, and transfer systems likely matter too.',
+    },
+    INFLATION: {
+      deduction:
+        'Inflation shows a moderate negative association here, which should be interpreted carefully because the time series is short and the survey years are widely spaced.',
+      implication:
+        'The chart is most useful as a comparative signal, not as proof that inflation reduces poverty. In practice, inflation still affects purchasing power and should be read alongside the poverty-line changes.',
+    },
+    GINI: {
+      deduction:
+        'Gini has the clearest positive association with poverty in this analysis. As inequality rises, the poverty rate also tends to be higher in the observed survey years.',
+      implication:
+        'This strengthens the argument that poverty in Mauritius is not only about overall growth, but also about how evenly income is distributed across households.',
+    },
+  };
+
+  const variableDetail = detailByVariable[series.variable] ?? {
+    deduction: 'This chart shows how the selected variable moves in relation to poverty across the observed survey years.',
+    implication: 'The visual should be read as an exploratory relationship rather than as proof of direct causation.',
+  };
+
+  return {
+    relationship,
+    deduction: variableDetail.deduction,
+    implication: variableDetail.implication,
+    coefficientText:
+      coefficient === null
+        ? 'No coefficient is available for this variable in the current model output.'
+        : `In the multiple-regression model, the coefficient is ${coefficient.toFixed(4)}. This coefficient helps show the variable's direction and contribution when the other variables are considered together.`,
+  };
+}
+
+function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile: boolean }) {
+  const xDomain = getNumericDomain(
+    [...series.points.map((point) => point.x), ...series.trendLine.map((point) => point.x)],
+    0.14,
+  );
+  const yDomain = getNumericDomain(
+    [...series.points.map((point) => point.y), ...series.trendLine.map((point) => point.y)],
+    0.18,
+  );
+
+  return (
+    <Card className="relative z-10 p-5 sm:p-6" onClick={(event) => event.stopPropagation()}>
+      <Headline level={3} className="text-lg">{`Poverty vs ${series.label}`}</Headline>
+      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+        Real observed points with a sampled fitted trend line based on the regression relationship.
+      </p>
+      <div className="mt-5 h-[220px] sm:h-[320px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 8, right: isMobile ? 4 : 8, bottom: 8, left: isMobile ? -18 : 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+            <XAxis
+              type="number"
+              dataKey="x"
+              domain={xDomain}
+              axisLine={false}
+              tickLine={false}
+              interval="preserveStartEnd"
+              tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="y"
+              domain={yDomain}
+              axisLine={false}
+              tickLine={false}
+              width={isMobile ? 28 : 40}
+              tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+            />
+            <Tooltip
+              cursor={{ strokeDasharray: '3 3' }}
+              formatter={(value: number, name: string) => [
+                typeof value === 'number' ? value.toFixed(3) : value,
+                name,
+              ]}
+              labelFormatter={(_, payload) => {
+                const row = payload?.[0]?.payload as { period?: string } | undefined;
+                return row?.period ? `Observed: ${row.period}` : 'Modeled trend line';
+              }}
+              contentStyle={{
+                borderRadius: '12px',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                backgroundColor: 'var(--app-surface-container-lowest)',
+              }}
+            />
+            {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+            <Scatter name={isMobile ? 'Est.' : 'Estimated path'} data={series.interpolatedPoints} fill="rgba(61, 109, 184, 0.35)" />
+            <Scatter name={isMobile ? 'Obs.' : 'Observed'} data={series.points} fill="var(--app-primary)" />
+            <Scatter
+              name={isMobile ? 'Fit' : 'Trend line'}
+              data={series.trendLine}
+              fill="#b45309"
+              line={{ stroke: '#b45309', strokeWidth: 2 }}
+              shape={() => null}
+            />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
+
 const Analytics = () => {
   const [data, setData] = React.useState<AnalyticsResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [selectedVariable, setSelectedVariable] = React.useState<string | null>(null);
+  const [isMobile, setIsMobile] = React.useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false,
+  );
 
   React.useEffect(() => {
     let isMounted = true;
@@ -48,14 +257,111 @@ const Analytics = () => {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsMobile(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener('change', update);
+
+    return () => mediaQuery.removeEventListener('change', update);
+  }, []);
+
+  const regressionOverview = data?.regressionOverview ?? {
+    specification: 'Regression overview is loading from the backend.',
+    interpretation: 'Restart the backend/dev server if these analytics fields do not appear yet.',
+    strongestDriver: 'The frontend can still render the page while backend fields catch up.',
+  };
+  const actualPredictedSeries = React.useMemo(() => data?.actualPredictedSeries ?? [], [data]);
+  const correlationMatrix = React.useMemo(() => data?.correlationMatrix ?? [], [data]);
+  const correlationEntries = React.useMemo(() => data?.correlations ?? [], [data]);
+  const coefficientEntries = React.useMemo(() => data?.coefficients ?? [], [data]);
+  const demographicSections = React.useMemo(() => data?.demographicBreakdowns ?? [], [data]);
+  const predictionSeries = React.useMemo(() => data?.predictionSeries ?? [], [data]);
+  const regressionSeries = React.useMemo(() => data?.regressionSeries ?? [], [data]);
+  const scatterSeriesList = React.useMemo(() => data?.scatterSeries ?? [], [data]);
+
+  React.useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    setSelectedVariable((current) => current ?? scatterSeriesList[0]?.variable ?? correlationEntries[0]?.variable ?? null);
+  }, [data, scatterSeriesList, correlationEntries]);
+
+  const scatterSeries =
+    scatterSeriesList.find((series) => series.variable === selectedVariable) ??
+    scatterSeriesList[0] ??
+    null;
+  const activeCorrelation =
+    correlationEntries.find((entry) => entry.variable === selectedVariable) ??
+    correlationEntries[0] ??
+    null;
+  const activeCoefficient =
+    coefficientEntries.find((entry) => entry.variable.toUpperCase() === (selectedVariable ?? '').toUpperCase()) ??
+    null;
+  const heatmapLabels = React.useMemo(() => {
+    if (!correlationMatrix.length) {
+      return [];
+    }
+
+    return Array.from(new Set(correlationMatrix.flatMap((cell) => [cell.row, cell.column])));
+  }, [correlationMatrix]);
+  const galleryScatterSeries = React.useMemo(
+    () =>
+      [
+        scatterSeriesList.find((series) => series.variable === 'GDP'),
+        scatterSeriesList.find((series) => series.variable === 'UNEMPLOYMENT'),
+        scatterSeriesList.find((series) => series.variable === 'INFLATION'),
+        scatterSeriesList.find((series) => series.variable === 'GINI'),
+      ].filter((series): series is ScatterSeries => Boolean(series)),
+    [scatterSeriesList],
+  );
+  const giniExplanation =
+    'The Gini index is a common measure of income inequality. A higher Gini value means income is more unevenly distributed across households, while a lower value means incomes are more equal.';
+  const activeInsight = React.useMemo(
+    () =>
+      scatterSeries
+        ? getVariableInsight(
+            scatterSeries,
+            activeCorrelation?.correlation ?? null,
+            activeCoefficient?.coefficient ?? null,
+          )
+        : null,
+    [scatterSeries, activeCorrelation, activeCoefficient],
+  );
+  const explorerXDomain = React.useMemo(
+    () =>
+      scatterSeries
+        ? getNumericDomain(
+            [...scatterSeries.points.map((point) => point.x), ...scatterSeries.trendLine.map((point) => point.x)],
+            0.14,
+          )
+        : ([0, 1] as const),
+    [scatterSeries],
+  );
+  const explorerYDomain = React.useMemo(
+    () =>
+      scatterSeries
+        ? getNumericDomain(
+            [...scatterSeries.points.map((point) => point.y), ...scatterSeries.trendLine.map((point) => point.y)],
+            0.18,
+          )
+        : ([0, 1] as const),
+    [scatterSeries],
+  );
+
   return (
     <Layout>
       <div className="space-y-10">
         <section className="max-w-4xl">
           <Label className="mb-3 block">Analytical Results</Label>
-          <Headline level={1} className="mb-4">Regression, Prediction, and Demographic Analytics</Headline>
+          <Headline level={1} className="mb-4">Regression, Heatmaps, and Poverty Analytics</Headline>
           <p className="text-on-surface/60 text-lg leading-relaxed">
-            This page now surfaces the cleaned regression workbook directly, combining macroeconomic variables, rolling trend signals, and 2023 demographic poverty breakdowns in one place.
+            This page uses real chart data from the cleaned Mauritius poverty workbooks. Observed points come from the actual series, while denser fitted trend samples are modeled from the statistical relationships so the visuals feel concrete without pretending there were more survey years than we observed.
           </p>
         </section>
 
@@ -68,8 +374,8 @@ const Analytics = () => {
 
         {data ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="p-6 md:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+              <Card className="p-5 sm:p-6 sm:col-span-2 xl:col-span-2">
                 <div className="flex items-center gap-3 mb-4 text-primary">
                   <BarChart3 size={20} />
                   <Label className="text-primary/70">Analysis Title</Label>
@@ -77,7 +383,7 @@ const Analytics = () => {
                 <Headline level={3}>{data.title}</Headline>
               </Card>
 
-              <Card className="p-6">
+              <Card className="p-5 sm:p-6">
                 <div className="flex items-center gap-3 mb-4 text-primary">
                   <Sigma size={20} />
                   <Label className="text-primary/70">Model R²</Label>
@@ -85,18 +391,24 @@ const Analytics = () => {
                 <p className="text-4xl font-display font-bold text-primary">{data.modelScore.toFixed(2)}</p>
               </Card>
 
-              <Card className="p-6">
+              <Card className="p-5 sm:p-6">
                 <div className="flex items-center gap-3 mb-4 text-primary">
                   <Activity size={20} />
-                  <Label className="text-primary/70">Observations</Label>
+                  <Label className="text-primary/70">Observed Years</Label>
                 </div>
-                <p className="text-4xl font-display font-bold text-primary">{data.regressionSeries.length}</p>
+                <p className="text-4xl font-display font-bold text-primary">{regressionSeries.length}</p>
               </Card>
             </div>
 
-            <Card className="p-8">
+            <Card className="overflow-hidden p-5 sm:p-8">
               <Headline level={2} className="mb-4">Summary</Headline>
               <p className="text-sm text-on-surface/60 leading-relaxed">{data.summary}</p>
+              <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Regression Setup</p>
+                <p className="mt-3 text-sm font-medium text-on-surface">{regressionOverview.specification}</p>
+                <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{regressionOverview.interpretation}</p>
+                <p className="mt-3 text-sm leading-relaxed text-primary">{regressionOverview.strongestDriver}</p>
+              </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 {data.keyFindings.map((finding) => (
                   <div key={finding} className="rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
@@ -106,116 +418,426 @@ const Analytics = () => {
               </div>
             </Card>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <Card className="p-8 h-[420px]">
+            <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-6 sm:gap-8">
+              <Card className="p-5 sm:p-8">
                 <div className="mb-6">
-                  <Headline level={2}>Correlation Profile</Headline>
+                  <Headline level={2}>Correlation Strength</Headline>
                   <p className="mt-2 text-sm text-on-surface/50">
-                    Pearson correlations between poverty rate and each explanatory variable.
+                    These bars summarize the poverty-variable correlations used to guide the exploratory regression interpretation.
                   </p>
                 </div>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.correlations}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.3)" />
-                    <XAxis dataKey="variable" axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: 11 }} />
-                    <YAxis domain={[-1, 1]} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(value: number) => value.toFixed(3)}
-                      contentStyle={{
-                        borderRadius: '12px',
-                        border: '1px solid rgba(148, 163, 184, 0.2)',
-                        backgroundColor: 'var(--app-surface-container-lowest)',
-                      }}
-                    />
-                    <Bar dataKey="correlation" radius={[10, 10, 0, 0]}>
-                      {data.correlations.map((entry) => (
-                        <Cell key={entry.variable} fill={entry.direction === 'positive' ? 'var(--app-primary)' : '#b45309'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-
-              <Card className="p-8 h-[420px]">
-                <div className="mb-6">
-                  <Headline level={2}>Observed vs Rolling Average</Headline>
-                  <p className="mt-2 text-sm text-on-surface/50">
-                    Prediction-series smoothing helps show how the post-2017 drop stands out against the longer trend.
-                  </p>
-                </div>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.predictionSeries}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.3)" />
-                    <XAxis dataKey="period" axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: 11 }} />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: '12px',
-                        border: '1px solid rgba(148, 163, 184, 0.2)',
-                        backgroundColor: 'var(--app-surface-container-lowest)',
-                      }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="povertyRate" name="Observed rate" stroke="var(--app-primary)" strokeWidth={3} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="rollingAverage" name="Rolling average" stroke="#b45309" strokeWidth={3} strokeDasharray="6 4" dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-8">
-              <Card className="p-8">
-                <Headline level={2} className="mb-6">Regression Coefficients</Headline>
-                <div className="space-y-3">
-                  {data.coefficients.map((coefficient) => (
-                    <div key={coefficient.variable} className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container-low px-4 py-4">
-                      <span className="text-sm font-medium">{coefficient.variable}</span>
-                      <span className="text-sm font-display font-bold text-primary">{coefficient.coefficient}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Headline level={3} className="mt-8 mb-4">Variables Used</Headline>
-                <div className="grid grid-cols-1 gap-3">
-                  {data.variables.map((variable) => (
-                    <div key={variable} className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-low px-4 py-4">
-                      <CheckCircle2 size={16} className="text-green-600" />
-                      <span className="text-sm font-medium">{variable}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              <Card className="p-8">
-                <div className="mb-6 flex items-center gap-3 text-primary">
-                  <TrendingUp size={20} />
-                  <Headline level={2}>2023 Demographic Risk Snapshot</Headline>
-                </div>
-                <div className="grid gap-6 md:grid-cols-3">
-                  {data.demographicBreakdowns.map((section) => (
-                    <div key={section.category} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
-                      <div className="mb-4 flex items-center justify-between">
-                        <Headline level={3} className="text-lg">{section.category}</Headline>
-                        <span className="text-xs font-semibold uppercase tracking-wider text-on-surface/40">{section.year}</span>
-                      </div>
-                      <div className="space-y-3">
-                        {section.groups.map((group) => (
-                          <div key={group.group}>
-                            <div className="mb-1 flex items-center justify-between text-sm">
-                              <span className="font-medium">{group.group}</span>
-                              <span className="font-semibold text-primary">{group.value}%</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
-                              <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(group.value * 4, 100)}%` }} />
-                            </div>
-                          </div>
+                <div className="h-[220px] sm:h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={correlationEntries} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.3)" />
+                      <XAxis dataKey="variable" axisLine={false} tickLine={false} interval={0} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
+                      <YAxis width={isMobile ? 28 : 40} domain={[-1, 1]} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
+                      <Tooltip
+                        formatter={(value: number) => [value.toFixed(3), 'Correlation']}
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: '1px solid rgba(148, 163, 184, 0.2)',
+                          backgroundColor: 'var(--app-surface-container-lowest)',
+                        }}
+                      />
+                      <Bar dataKey="correlation" radius={[10, 10, 0, 0]}>
+                        {correlationEntries.map((entry) => (
+                          <Cell
+                            key={entry.variable}
+                            fill={selectedVariable === entry.variable ? '#0b4dbb' : entry.direction === 'positive' ? '#3d6db8' : '#b45309'}
+                          />
                         ))}
-                      </div>
-                    </div>
-                  ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card className="p-5 sm:p-8">
+                <div className="mb-6">
+                  <Headline level={2}>Poverty Trend and Rolling Average</Headline>
+                  <p className="mt-2 text-sm text-on-surface/50">
+                    This pairs the observed poverty series with the smoothed rolling average from the cleaned workbook.
+                  </p>
+                </div>
+                <div className="h-[220px] sm:h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={predictionSeries} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.3)" />
+                      <XAxis dataKey="period" interval={0} minTickGap={isMobile ? 18 : 5} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 8 : 11 }} />
+                      <YAxis width={isMobile ? 28 : 40} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: '1px solid rgba(148, 163, 184, 0.2)',
+                          backgroundColor: 'var(--app-surface-container-lowest)',
+                        }}
+                      />
+                      {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                      <Line type="monotone" dataKey="povertyRate" name={isMobile ? 'Observed' : 'Observed poverty'} stroke="var(--app-primary)" strokeWidth={3} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="rollingAverage" name={isMobile ? 'Rolling avg' : 'Rolling average'} stroke="#0f766e" strokeWidth={3} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </Card>
             </div>
+
+            <Card className="p-5 sm:p-8">
+              <Headline level={2} className="mb-6">Interactive Regression Explorer</Headline>
+              <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+                {correlationEntries.map((entry) => (
+                  <button
+                    key={entry.variable}
+                    type="button"
+                    onClick={() => setSelectedVariable(entry.variable)}
+                    className={`rounded-2xl border px-3 sm:px-4 py-3 sm:py-4 text-left transition-colors ${
+                      selectedVariable === entry.variable
+                        ? 'border-primary bg-primary/8'
+                        : 'border-outline-variant bg-surface-container-low hover:bg-surface-container'
+                    }`}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">{entry.variable}</p>
+                    <p className="mt-2 sm:mt-3 text-xl sm:text-2xl font-display font-bold text-primary">{entry.correlation.toFixed(3)}</p>
+                    <p className="mt-2 text-sm text-on-surface/60 capitalize">{entry.direction} correlation, {entry.strength}</p>
+                  </button>
+                ))}
+              </div>
+
+              {scatterSeries && (
+                <div className="mt-8 grid items-start grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6 sm:gap-8">
+                  <Card className="relative z-10 p-5 sm:p-6" onClick={(event) => event.stopPropagation()}>
+                    <div className="mb-5">
+                      <Headline level={3}>{scatterSeries.label} vs Poverty</Headline>
+                      <p className="mt-2 text-sm text-on-surface/50">
+                        Solid dots are observed survey points. The continuous line is a modeled trend sampled across the variable range to make the relationship easier to read.
+                      </p>
+                      {scatterSeries.label === 'Gini' && (
+                        <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">What Gini Means</p>
+                          <p className="mt-2 text-sm leading-relaxed text-on-surface/65">{giniExplanation}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="h-[240px] sm:h-[380px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 10, right: isMobile ? 6 : 16, bottom: 10, left: isMobile ? -18 : 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.3)" />
+                        <XAxis
+                          type="number"
+                          dataKey="x"
+                          name={scatterSeries.label}
+                          unit={scatterSeries.unit}
+                          domain={explorerXDomain}
+                          axisLine={false}
+                          tickLine={false}
+                          interval="preserveStartEnd"
+                          tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="y"
+                          name="Poverty"
+                          unit="%"
+                          domain={explorerYDomain}
+                          axisLine={false}
+                          tickLine={false}
+                          width={isMobile ? 28 : 40}
+                          tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: '3 3' }}
+                          formatter={(value: number, name: string) => [
+                            typeof value === 'number' ? value.toFixed(3) : value,
+                            name,
+                          ]}
+                          labelFormatter={(_, payload) => {
+                            const row = payload?.[0]?.payload as { period?: string } | undefined;
+                            return row?.period ? `Observed: ${row.period}` : 'Modeled trend line';
+                          }}
+                          contentStyle={{
+                            borderRadius: '12px',
+                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                            backgroundColor: 'var(--app-surface-container-lowest)',
+                          }}
+                        />
+                        {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                        <Scatter
+                          name={isMobile ? 'Est.' : 'Estimated path'}
+                          data={scatterSeries.interpolatedPoints}
+                          fill="rgba(61, 109, 184, 0.35)"
+                        />
+                        <Scatter name={isMobile ? 'Obs.' : 'Observed points'} data={scatterSeries.points} fill="var(--app-primary)" />
+                        <Scatter
+                          name={isMobile ? 'Fit' : 'Modeled line'}
+                          data={scatterSeries.trendLine}
+                          fill="#b45309"
+                          line={{ stroke: '#b45309', strokeWidth: 2 }}
+                          shape={() => null}
+                        />
+                      </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {activeInsight && (
+                      <div className="mt-6 grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Main Deduction</p>
+                          <p className="mt-2 text-sm font-medium text-on-surface capitalize">{activeInsight.relationship} relationship</p>
+                          <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{activeInsight.deduction}</p>
+                        </div>
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Why It Matters</p>
+                          <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{activeInsight.implication}</p>
+                          <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{activeInsight.coefficientText}</p>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card className="relative z-10 p-5 sm:p-8" onClick={(event) => event.stopPropagation()}>
+                    <Headline level={3} className="mb-4">Selected Variable</Headline>
+                    {activeCorrelation && (
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Quick Variable Switch</p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {coefficientEntries.map((coefficient) => (
+                              <button
+                                key={`quick-${coefficient.variable}`}
+                                type="button"
+                                onClick={() => setSelectedVariable(coefficient.variable.toUpperCase())}
+                                className={`rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                                  selectedVariable?.toUpperCase() === coefficient.variable.toUpperCase()
+                                    ? 'border-primary bg-primary/8'
+                                    : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
+                                }`}
+                              >
+                                <span className="block font-medium">{coefficient.variable}</span>
+                                <span className="mt-1 block text-xs text-on-surface/55">{coefficient.coefficient}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Correlation</p>
+                          <p className="mt-2 text-3xl font-display font-bold text-primary">{activeCorrelation.correlation.toFixed(3)}</p>
+                          <p className="mt-2 text-sm text-on-surface/60 capitalize">{activeCorrelation.direction} relationship, {activeCorrelation.strength} strength</p>
+                        </div>
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Regression Coefficient</p>
+                          <p className="mt-2 text-3xl font-display font-bold text-primary">
+                            {activeCoefficient ? activeCoefficient.coefficient : 'N/A'}
+                          </p>
+                          <p className="mt-2 text-sm text-on-surface/60">
+                            This coefficient comes from the multiple-regression fit, while the scatter chart visualizes the simpler one-variable relationship.
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Observed Data Points</p>
+                          <p className="mt-2 text-lg font-semibold text-on-surface">{scatterSeries.points.length} observed survey years</p>
+                          <p className="mt-2 text-sm text-on-surface/60">
+                            The smooth line adds 41 modeled samples across the observed variable range, which makes the chart feel more concrete while keeping the observed survey count honest.
+                            Interpolated path points fill the gaps between survey years so the shape reads better without pretending those are extra official observations.
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Plain-Language Reading</p>
+                          <p className="mt-2 text-sm font-medium text-on-surface">
+                            {getCorrelationSummary(
+                              scatterSeries,
+                              activeCorrelation?.correlation ?? null,
+                              activeCoefficient?.coefficient ?? null,
+                            ).title}
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                            {getCorrelationSummary(
+                              scatterSeries,
+                              activeCorrelation?.correlation ?? null,
+                              activeCoefficient?.coefficient ?? null,
+                            ).relationText}
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                            {getCorrelationSummary(
+                              scatterSeries,
+                              activeCorrelation?.correlation ?? null,
+                              activeCoefficient?.coefficient ?? null,
+                            ).coefficientText}
+                          </p>
+                        </div>
+                        {scatterSeries.label === 'Gini' && (
+                          <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Gini in Simple Terms</p>
+                            <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{giniExplanation}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-5 sm:p-8">
+              <div className="mb-6 flex items-center gap-3 text-primary">
+                <TrendingUp size={20} />
+                <Headline level={2}>2023 Demographic Risk Snapshot</Headline>
+              </div>
+              <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <div>
+                  <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {demographicSections.map((section) => (
+                      <div key={section.category} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                          <Headline level={3} className="text-lg">{section.category}</Headline>
+                          <span className="text-xs font-semibold uppercase tracking-wider text-on-surface/40">{section.year}</span>
+                        </div>
+                        <div className="space-y-3">
+                          {section.groups.map((group) => (
+                            <div key={group.group}>
+                              <div className="mb-1 flex items-center justify-between text-sm">
+                                <span className="font-medium">{group.group}</span>
+                                <span className="font-semibold text-primary">{group.value}%</span>
+                              </div>
+                              <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(group.value * 4, 100)}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Key Demographic Reading</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                      The 2023 breakdown shows that poverty is not distributed evenly across the population. Children, youth, and unemployed people face noticeably higher poverty rates than elderly people, retirees, or those in employment.
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-on-surface/60">
+                      This matters because it helps move the discussion beyond national averages. Even if the overall poverty rate improves, certain groups can remain much more exposed than others.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Variables Used</p>
+                    <div className="mt-4 grid gap-3">
+                      {data.variables.map((variable) => (
+                        <div key={variable} className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                          <CheckCircle2 size={16} className="text-green-600" />
+                          <span className="text-sm font-medium">{variable}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">How To Read This Page</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                      Correlation shows whether two measures move together. Regression goes one step further by estimating how strongly each variable is associated with poverty when the variables are considered together.
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{giniExplanation}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 sm:p-8">
+              <div className="mx-auto max-w-6xl">
+                <Headline level={2} className="mb-3 text-center">Dynamic Chart Gallery</Headline>
+                <p className="mb-8 text-center text-sm text-on-surface/60 leading-relaxed max-w-4xl mx-auto">
+                  This section recreates the old output set as live charts. The heatmap, actual-versus-predicted series, and each regression scatter are now rendered directly from the current analytics payload instead of static pictures.
+                </p>
+                <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+                  {correlationMatrix.length > 0 && (
+                    <Card className="max-w-full overflow-hidden p-5 sm:p-6">
+                      <Headline level={3} className="text-xl">Correlation Heatmap</Headline>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        Full correlation matrix across poverty, GDP, unemployment, inflation, and Gini.
+                      </p>
+                      <div className="mt-5 w-full max-w-full overflow-x-auto overscroll-x-contain pb-2">
+                        <div
+                          className="inline-grid gap-1.5 sm:gap-2"
+                          style={{
+                            gridTemplateColumns: isMobile
+                              ? `72px repeat(${heatmapLabels.length}, minmax(44px, 1fr))`
+                              : `92px repeat(${heatmapLabels.length}, minmax(56px, 1fr))`,
+                          }}
+                        >
+                          <div />
+                          {heatmapLabels.map((label) => (
+                            <div
+                              key={`gallery-col-${label}`}
+                              className={`text-center leading-tight font-semibold uppercase tracking-wide text-on-surface/45 whitespace-pre-line break-words px-1 ${
+                                isMobile ? 'text-[8px]' : 'text-[10px]'
+                              }`}
+                            >
+                              {compactLabel(label)}
+                            </div>
+                          ))}
+                          {heatmapLabels.map((rowLabel) => (
+                            <React.Fragment key={`gallery-row-${rowLabel}`}>
+                              <div
+                                className={`flex items-center leading-tight font-semibold uppercase tracking-wide text-on-surface/45 whitespace-pre-line break-words pr-2 ${
+                                  isMobile ? 'text-[8px]' : 'text-[10px]'
+                                }`}
+                              >
+                                {compactLabel(rowLabel)}
+                              </div>
+                              {heatmapLabels.map((columnLabel) => {
+                                const value = getMatrixValue(correlationMatrix, rowLabel, columnLabel);
+                                return (
+                                  <div
+                                    key={`gallery-${rowLabel}-${columnLabel}`}
+                                    className={`flex aspect-square items-center justify-center rounded-lg sm:rounded-xl border border-white/15 font-semibold text-white ${
+                                      isMobile ? 'text-[10px]' : 'text-xs'
+                                    }`}
+                                    style={{ backgroundColor: heatmapColor(value ?? 0) }}
+                                  >
+                                    {value?.toFixed(2) ?? '--'}
+                                  </div>
+                                );
+                              })}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {actualPredictedSeries.length > 0 && (
+                    <Card className="p-5 sm:p-6">
+                      <Headline level={3} className="text-xl">Actual vs Predicted Poverty</Headline>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        Observed poverty levels compared with the fitted model output across the survey years.
+                      </p>
+                      <div className="mt-5 h-[240px] sm:h-[360px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={actualPredictedSeries}>
+                            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                            <XAxis dataKey="period" interval="preserveStartEnd" axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
+                            <YAxis width={isMobile ? 28 : 40} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: '12px',
+                                border: '1px solid rgba(148, 163, 184, 0.2)',
+                                backgroundColor: 'var(--app-surface-container-lowest)',
+                              }}
+                            />
+                            {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                            <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--app-primary)" strokeWidth={3} dot={{ r: 3 }} />
+                            <Line type="monotone" dataKey="predicted" name={isMobile ? 'Pred.' : 'Predicted'} stroke="#b45309" strokeWidth={3} strokeDasharray="6 4" dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                  )}
+
+                  {galleryScatterSeries.map((series) => (
+                    <div key={series.variable}>
+                      <MiniScatterCard series={series} isMobile={isMobile} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
           </>
         ) : (
           !error && (

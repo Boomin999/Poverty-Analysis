@@ -35,12 +35,12 @@ const BottomNavItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, to }) =>
   <NavLink 
     to={to}
     className={({ isActive }) => cn(
-      "flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-colors",
+      "flex min-w-0 flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors",
       isActive ? "text-primary" : "text-on-surface/40"
     )}
   >
-    <Icon size={20} />
-    <span className="text-[10px] font-bold uppercase tracking-wider">{label.split(' ')[0]}</span>
+    <Icon size={18} />
+    <span className="truncate text-[9px] font-bold uppercase tracking-wide">{label.split(' ')[0]}</span>
   </NavLink>
 );
 
@@ -97,8 +97,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0 lg:ml-64">
-        <div className="p-6 lg:p-12 max-w-7xl mx-auto w-full">
+      <main className="flex-1 flex flex-col min-w-0 pb-28 lg:pb-0 lg:ml-64">
+        <div className="p-6 pb-10 lg:p-12 max-w-7xl mx-auto w-full">
           <div className="mb-6 flex justify-end lg:hidden">
             <button
               type="button"
@@ -113,7 +113,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         {/* Bottom Navigation - Mobile Only */}
-        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-surface-container-low border-t border-outline-variant flex items-center justify-around px-2 lg:hidden z-40 glass-panel">
+        <nav className="fixed bottom-0 left-0 right-0 h-14 bg-surface-container-low border-t border-outline-variant flex items-center justify-around px-1 lg:hidden z-40 glass-panel">
           <BottomNavItem icon={LayoutDashboard} label="Dashboard" to="/" />
           <BottomNavItem icon={Database} label="Explorer" to="/dataset-explorer" />
           <BottomNavItem icon={BarChart3} label="Analytics" to="/analytics" />
