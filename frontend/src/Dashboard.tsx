@@ -103,6 +103,8 @@ const Dashboard = () => {
   const personsChange = latestTrendPoint && previousTrendPoint
     ? latestTrendPoint.number - previousTrendPoint.number
     : null;
+  const surveyCoverage = data?.relativePovertyTrend.length ?? 0;
+  const districtCoverage = data?.regionalStats.length ?? 0;
 
   return (
     <Layout>
@@ -118,6 +120,25 @@ const Dashboard = () => {
             <p className="text-lg text-on-surface/70 leading-relaxed">
               The dashboard now brings together Statistics Mauritius poverty indicators, 2023 demographic breakdowns, and district-level Relative Development Index data to support a more grounded national view.
             </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Research Coverage</p>
+                <p className="mt-2 text-2xl font-display font-bold text-primary">
+                  {surveyCoverage || districtCoverage ? `${surveyCoverage} survey points` : '--'}
+                </p>
+                <p className="mt-2 text-sm text-on-surface/60">
+                  Historical poverty trend points combined with district development evidence across {districtCoverage || '--'} ranked districts.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Immediate Reading</p>
+                <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                  {highestDemographicRisk && lowestDemographicRisk
+                    ? `${highestDemographicRisk.group} show the highest observed poverty risk at ${highestDemographicRisk.value}%, while ${lowestDemographicRisk.group} record the lowest at ${lowestDemographicRisk.value}%.`
+                    : 'The dashboard combines trend, demographic, and district evidence so poverty can be read from both national and regional perspectives.'}
+                </p>
+              </div>
+            </div>
           </div>
 
           <Card className="border border-primary/10 bg-primary/5 p-8">
