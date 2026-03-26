@@ -39,6 +39,36 @@ const formatMetricValue = (value: number, unit: string) => {
   return `${value.toLocaleString('en-MU')} ${unit}`;
 };
 
+const getHighestDemographicGroup = (sections: DashboardResponse['demographicHighlights']) => {
+  const allGroups = sections.flatMap((section) =>
+    section.groups.map((group) => ({
+      category: section.category,
+      group: group.group,
+      value: group.value,
+    })),
+  );
+
+  return allGroups.reduce<(typeof allGroups)[number] | null>(
+    (highest, current) => (!highest || current.value > highest.value ? current : highest),
+    null,
+  );
+};
+
+const getLowestDemographicGroup = (sections: DashboardResponse['demographicHighlights']) => {
+  const allGroups = sections.flatMap((section) =>
+    section.groups.map((group) => ({
+      category: section.category,
+      group: group.group,
+      value: group.value,
+    })),
+  );
+
+  return allGroups.reduce<(typeof allGroups)[number] | null>(
+    (lowest, current) => (!lowest || current.value < lowest.value ? current : lowest),
+    null,
+  );
+};
+
 const Dashboard = () => {
   const [data, setData] = React.useState<DashboardResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -64,11 +94,20 @@ const Dashboard = () => {
   }, []);
 
   const headlineMetric = data?.headlineMetric;
+  const highestDemographicRisk = data ? getHighestDemographicGroup(data.demographicHighlights) : null;
+  const lowestDemographicRisk = data ? getLowestDemographicGroup(data.demographicHighlights) : null;
+  const latestTrendPoint = data?.relativePovertyTrend.at(-1);
+  const previousTrendPoint = data && data.relativePovertyTrend.length > 1
+    ? data.relativePovertyTrend[data.relativePovertyTrend.length - 2]
+    : null;
+  const personsChange = latestTrendPoint && previousTrendPoint
+    ? latestTrendPoint.number - previousTrendPoint.number
+    : null;
 
   return (
     <Layout>
       <div className="space-y-12">
-        <section className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr]">
+        <section className="grid items-start gap-8 lg:grid-cols-[1.5fr_0.9fr]">
           <div className="max-w-3xl">
             <Label className="mb-4 block">Mauritius Poverty Insights</Label>
             <Headline level={1} className="mb-6">
@@ -81,7 +120,7 @@ const Dashboard = () => {
             </p>
           </div>
 
-          <Card className="border border-primary/10 bg-primary/5">
+          <Card className="border border-primary/10 bg-primary/5 p-8">
             <Label className="mb-2 block">{headlineMetric?.label ?? 'Loading metric'}</Label>
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-display font-bold text-primary">
@@ -100,6 +139,50 @@ const Dashboard = () => {
             <p className="mt-4 text-sm leading-relaxed text-on-surface/60">
               Latest headline rate from the 2023 poverty update, compared with the previous survey point in 2017.
             </p>
+            <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Headline Context</p>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-start justify-between gap-4 border-b border-outline-variant/60 pb-3">
+                  <div>
+                    <p className="text-sm font-medium text-on-surface">Previous survey comparison</p>
+                    <p className="mt-1 text-sm text-on-surface/60">
+                      {previousTrendPoint
+                        ? `The previous survey point in ${previousTrendPoint.period} recorded a poverty rate of ${previousTrendPoint.percentage.toFixed(1)}%.`
+                        : 'Previous survey context is loading.'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-lg font-display font-bold text-primary">
+                    {previousTrendPoint ? `${previousTrendPoint.percentage.toFixed(1)}%` : '--'}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-b border-outline-variant/60 pb-3">
+                  <div>
+                    <p className="text-sm font-medium text-on-surface">Estimated persons in poverty</p>
+                    <p className="mt-1 text-sm text-on-surface/60">
+                      {latestTrendPoint
+                        ? `The latest survey corresponds to about ${latestTrendPoint.number.toFixed(1)} thousand persons in relative poverty.`
+                        : 'Latest poverty count is loading.'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-lg font-display font-bold text-primary">
+                    {latestTrendPoint ? `${latestTrendPoint.number.toFixed(1)}k` : '--'}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-on-surface">Change in poverty count</p>
+                    <p className="mt-1 text-sm text-on-surface/60">
+                      {personsChange !== null
+                        ? `Compared with the previous survey, the estimated number of persons in poverty ${personsChange <= 0 ? 'fell' : 'rose'} by ${Math.abs(personsChange).toFixed(1)} thousand.`
+                        : 'Poverty count change is loading.'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-lg font-display font-bold text-primary">
+                    {personsChange !== null ? `${personsChange > 0 ? '+' : '-'}${Math.abs(personsChange).toFixed(1)}k` : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </Card>
         </section>
 
@@ -158,7 +241,7 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.9fr] gap-8">
+        <div className="grid items-start grid-cols-1 xl:grid-cols-[1.45fr_0.9fr] gap-8">
           <Card className="flex flex-col h-[470px]">
             <div className="mb-6">
               <Headline level={3}>Relative Poverty Trend in Mauritius</Headline>
@@ -265,11 +348,14 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8">
+        <section className="grid items-start grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8">
           <Card className="p-8">
             <div className="mb-6">
               <Label className="mb-2 block">2023 Breakdown</Label>
               <Headline level={2}>Demographic Poverty Profiles</Headline>
+              <p className="mt-2 text-sm text-on-surface/60">
+                These profiles show which social groups recorded higher or lower poverty rates in the 2023 update.
+              </p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
               {data?.demographicHighlights.map((section) => (
@@ -293,6 +379,38 @@ const Dashboard = () => {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Highest Observed Risk</p>
+                <p className="mt-2 text-2xl font-display font-bold text-primary">
+                  {highestDemographicRisk ? `${highestDemographicRisk.group} ${highestDemographicRisk.value}%` : '--'}
+                </p>
+                <p className="mt-2 text-sm text-on-surface/60">
+                  {highestDemographicRisk
+                    ? `${highestDemographicRisk.category} category with the highest recorded poverty rate in the current dashboard breakdown.`
+                    : 'Demographic insight loading.'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Lowest Observed Risk</p>
+                <p className="mt-2 text-2xl font-display font-bold text-primary">
+                  {lowestDemographicRisk ? `${lowestDemographicRisk.group} ${lowestDemographicRisk.value}%` : '--'}
+                </p>
+                <p className="mt-2 text-sm text-on-surface/60">
+                  {lowestDemographicRisk
+                    ? `${lowestDemographicRisk.category} category with the lowest recorded poverty rate in the current dashboard breakdown.`
+                    : 'Demographic insight loading.'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Key Reading</p>
+                <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                  {highestDemographicRisk && lowestDemographicRisk
+                    ? `${highestDemographicRisk.group} records the highest poverty rate at ${highestDemographicRisk.value}%, while ${lowestDemographicRisk.group} records the lowest at ${lowestDemographicRisk.value}%. This helps show how poverty risk is unevenly distributed across social groups.`
+                    : 'The 2023 demographic profile helps compare poverty risk across activity status, age, and sex.'}
+                </p>
+              </div>
             </div>
           </Card>
 
