@@ -163,6 +163,7 @@ const MapView = () => {
         return {
           color: 'rgba(255,255,255,0.95)',
           weight: 1.6,
+          lineJoin: 'round',
           fillColor: colorForRdi(region?.rdi, minRdi, maxRdi),
           fillOpacity: 0.92,
         };
@@ -231,9 +232,14 @@ const MapView = () => {
         layer.setStyle({
           color: isSelected ? '#0f172a' : 'rgba(255,255,255,0.95)',
           weight: isSelected ? 3 : 1.6,
+          lineJoin: 'round',
           fillColor: colorForRdi(region?.rdi, minRdi, maxRdi),
           fillOpacity: 0.92,
         });
+
+        if (isSelected) {
+          layer.bringToFront();
+        }
       }
     });
   }, [selectedRegionName, values]);

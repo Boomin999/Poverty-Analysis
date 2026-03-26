@@ -1066,6 +1066,7 @@ const Analytics = () => {
                           />
                           <Tooltip
                             formatter={(value: number) => [value, 'Districts']}
+                            cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
                             contentStyle={{
                               borderRadius: '12px',
                               border: '1px solid rgba(148, 163, 184, 0.2)',
@@ -1150,6 +1151,7 @@ const Analytics = () => {
                       <YAxis width={isMobile ? 28 : 40} domain={[-1, 1]} axisLine={false} tickLine={false} tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }} />
                       <Tooltip
                         formatter={(value: number) => [value.toFixed(3), 'Correlation']}
+                        cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
                         contentStyle={{
                           borderRadius: '12px',
                           border: '1px solid rgba(148, 163, 184, 0.2)',

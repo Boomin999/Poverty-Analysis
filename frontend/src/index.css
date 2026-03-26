@@ -88,6 +88,12 @@
     font-family: var(--font-sans);
   }
 
+  .dark .leaflet-container,
+  .dark .leaflet-pane,
+  .dark .leaflet-map-pane {
+    background: #162133 !important;
+  }
+
   .leaflet-bar a,
   .leaflet-bar a:hover {
     background: var(--app-surface-container-lowest);
