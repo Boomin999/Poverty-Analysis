@@ -7,9 +7,11 @@ import type {
   PovertyClusterCategory,
   PovertyGrouping,
   PovertyPredictionResponse,
+  RegionalInsights,
   RegressionCoefficient,
   RegressionObservation,
   ScatterSeries,
+  TrendInsights,
 } from '../../../shared/api/index.ts';
 import {
   readHistoricalPovertyTrend,
@@ -277,6 +279,90 @@ function fitYearToPovertyRegression(points: Array<{ year: number; povertyRate: n
   return { slope, intercept };
 }
 
+function getOverallTrendDirection(change: number): TrendInsights['overallDirection'] {
+  if (change > 0.15) {
+    return 'increasing';
+  }
+
+  if (change < -0.15) {
+    return 'decreasing';
+  }
+
+  return 'stable';
+}
+
+function buildTrendInsights(): TrendInsights {
+  const series = readHistoricalPovertyTrend();
+  const earliest = series[0];
+  const latest = series.at(-1) ?? earliest;
+  const minPoint = series.reduce((best, current) => (current.percentage < best.percentage ? current : best), earliest);
+  const maxPoint = series.reduce((best, current) => (current.percentage > best.percentage ? current : best), earliest);
+  const overallChange = Number((latest.percentage - earliest.percentage).toFixed(2));
+  const overallPercentChange = Number((((latest.percentage - earliest.percentage) / earliest.percentage) * 100).toFixed(2));
+  const averageRate = Number(
+    (series.reduce((sum, point) => sum + point.percentage, 0) / Math.max(series.length, 1)).toFixed(2),
+  );
+  const overallDirection = getOverallTrendDirection(overallChange);
+  const consecutiveChanges = series.slice(1).map((point, index) => {
+    const previous = series[index];
+    const change = Number((point.percentage - previous.percentage).toFixed(2));
+    const percentChange = Number((((point.percentage - previous.percentage) / previous.percentage) * 100).toFixed(2));
+
+    return {
+      fromPeriod: previous.period,
+      toPeriod: point.period,
+      fromValue: previous.percentage,
+      toValue: point.percentage,
+      change,
+      percentChange,
+    };
+  });
+
+  const directionText =
+    overallDirection === 'decreasing'
+      ? 'declined overall'
+      : overallDirection === 'increasing'
+        ? 'increased overall'
+        : 'remained broadly stable overall';
+
+  return {
+    overallDirection,
+    overallChange,
+    overallPercentChange,
+    averageRate,
+    minPoint: {
+      period: minPoint.period,
+      value: minPoint.percentage,
+    },
+    maxPoint: {
+      period: maxPoint.period,
+      value: maxPoint.percentage,
+    },
+    consecutiveChanges,
+    summary: `Poverty ${directionText} from ${earliest.percentage}% in ${earliest.period} to ${latest.percentage}% in ${latest.period}.`,
+  };
+}
+
+function buildRegionalInsights(): RegionalInsights {
+  const ranked = [...readRegionalAnalyticsSeries()].sort((left, right) => right.value - left.value);
+  const topDistricts = ranked.slice(0, 3);
+  const bottomDistricts = [...ranked].reverse().slice(0, 3);
+  const best = topDistricts[0];
+  const weakest = bottomDistricts[0];
+  const gapValue = Number((best.value - weakest.value).toFixed(1));
+  const gapPercent = Number((((best.value - weakest.value) / weakest.value) * 100).toFixed(2));
+
+  return {
+    explanation:
+      'Higher RDI values indicate better development conditions, while lower RDI values indicate higher vulnerability to poverty and deprivation.',
+    topDistricts,
+    bottomDistricts,
+    gapValue,
+    gapPercent,
+    summary: `${weakest.region} sits at the lower end of the RDI ranking, while ${best.region} is the best-performing district in the current dataset.`,
+  };
+}
+
 function buildPovertyPrediction(): PovertyPredictionResponse {
   const historicalSeries = readHistoricalPovertyTrend()
     .map((point) => ({
@@ -369,6 +455,8 @@ export function getAnalyticsSummary(): AnalyticsResponse {
   const regressionSeries = readRegressionSeries();
   const predictionSeries = readPredictionSeries();
   const demographicBreakdowns = readDemographicBreakdowns();
+  const trendInsights = buildTrendInsights();
+  const regionalInsights = buildRegionalInsights();
   const povertyGrouping = groupRegionalValuesByTertile(readRegionalAnalyticsSeries());
   const povertySeries = regressionSeries.map((row) => row.povertyRate);
   const variables = variableConfig.map((config) => config.variable);
@@ -481,6 +569,8 @@ export function getAnalyticsSummary(): AnalyticsResponse {
     actualPredictedSeries,
     correlationMatrix,
     scatterSeries,
+    trendInsights,
+    regionalInsights,
     povertyGrouping,
     demographicBreakdowns,
     legacyCharts,

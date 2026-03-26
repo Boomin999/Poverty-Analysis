@@ -1,4 +1,5 @@
 export type {
+  DashboardDerivedInsight,
   DashboardRegionSnapshot,
   DashboardSupportMetric,
   DashboardResponse,
@@ -30,11 +31,16 @@ export type {
   PovertyPredictionChartPoint,
   PovertyPredictionResponse,
   PovertyPredictionValue,
+  ConsecutiveTrendChange,
   PredictionPoint,
+  RegionalInsightDistrict,
+  RegionalInsights,
   RegressionOverview,
   RegressionCoefficient,
   RegressionObservation,
   ScatterSeries,
+  TrendExtremePoint,
+  TrendInsights,
 } from './analytics.ts';
 export type { MapAreaHighlight, MapOverview, MapRegion, MapResponse } from './map.ts';
 export type { ApiError } from './common.ts';

@@ -25,6 +25,12 @@ export const dashboardSupportMetricSchema = z.object({
   context: z.string().min(1),
 });
 
+export const dashboardDerivedInsightSchema = z.object({
+  label: z.string().min(1),
+  value: z.string().min(1),
+  context: z.string().min(1),
+});
+
 export const demographicGroupSchema = z.object({
   group: z.string().min(1),
   value: z.number(),
@@ -57,6 +63,7 @@ export const publicationSchema = z.object({
 export const dashboardResponseSchema = z.object({
   headlineMetric: headlineMetricSchema,
   supportingMetrics: z.array(dashboardSupportMetricSchema),
+  derivedInsights: z.array(dashboardDerivedInsightSchema),
   relativePovertyTrend: z.array(relativePovertyTrendPointSchema),
   demographicHighlights: z.array(demographicBreakdownSchema),
   regionalStats: z.array(dashboardRegionSnapshotSchema),

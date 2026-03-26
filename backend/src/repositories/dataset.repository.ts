@@ -3,6 +3,7 @@ import type { DatasetListItem, DatasetPreviewResponse } from '../../../shared/ap
 import { getDatabase } from '../db/connection.ts';
 import {
   getProcessedDataPath,
+  getRawGeospatialPath,
   getRawPovertyReportPath,
   getRawSpreadsheetPath,
   getRawWorldBankPath,
@@ -12,9 +13,27 @@ const worldBankCsvPath = getRawWorldBankPath('API_MUS_DS2_en_csv_v2_26053.csv');
 
 const filePathByDatasetId: Record<string, string | null> = {
   'relative-poverty-series': getProcessedDataPath('poverty_trend.json'),
+  'poverty-indicators-cleaned': getRawSpreadsheetPath('data_indicators-of-relative-poverty-republic-of-mauritius.xlsx'),
+  'household-poverty-survey-2023': getRawSpreadsheetPath('HS_Poverty_Jun23_210623.xlsx'),
   'mauritius-poverty-dataset': getRawSpreadsheetPath('mauritius_poverty_dataset.xlsx'),
+  'mauritius-poverty-advanced': getRawSpreadsheetPath('mauritius_poverty_ADVANCED.xlsx'),
+  'mauritius-poverty-full-raw': getRawSpreadsheetPath('mauritius_poverty_FULL_raw.xlsx'),
+  'relative-poverty-extracted-workbook': getRawSpreadsheetPath('mauritius_relative_poverty_extracted_workbook.xlsx'),
+  'poverty-analysis-2001-02': getRawPovertyReportPath('Poverty Analysis report 200102.pdf'),
+  'poverty-analysis-2012': getRawPovertyReportPath('Poverty Analysis 2012.pdf'),
+  'poverty-analysis-2017': getRawPovertyReportPath('Poverty_Analysis_Rep_2017.pdf'),
   'poverty-analysis-2023': getRawPovertyReportPath('Poverty_Analysis_Report _2023.pdf'),
+  'relative-development-index-1990': getRawPovertyReportPath('Relative Development Index 1990.pdf'),
+  'relative-development-index-2022': getRawPovertyReportPath('Relative Development Index 2022.pdf'),
+  'rdi-2011-workbook': getRawSpreadsheetPath('RDI2011.xlsx'),
+  'rdi-2022-clean-workbook': getRawSpreadsheetPath('rdi_2022_clean_final.xlsx'),
+  'rdi-comparison-workbook': getRawSpreadsheetPath('rdi_comparison_clean.xlsx'),
+  'mauritius-district-boundaries': getRawGeospatialPath('mauritius_districts.geojson'),
+  'district-rdi-aggregated': getRawGeospatialPath('rdi_district_aggregated_mauritius_rodrigues.csv'),
+  'poverty-mus-csv': getRawSpreadsheetPath('poverty_mus.csv'),
   'world-bank-indicators': worldBankCsvPath,
+  'world-bank-country-metadata': getRawWorldBankPath('Metadata_Country_API_MUS_DS2_en_csv_v2_26053.csv'),
+  'world-bank-indicator-metadata': getRawWorldBankPath('Metadata_Indicator_API_MUS_DS2_en_csv_v2_26053.csv'),
 };
 
 function formatSize(bytes: number) {

@@ -1,4 +1,4 @@
-import type { DashboardResponse } from '../../../shared/api/index.ts';
+import type { DashboardDerivedInsight, DashboardResponse } from '../../../shared/api/index.ts';
 import {
   readDemographicHighlights,
   readKeyFindings,
@@ -18,6 +18,21 @@ export function getDashboardData(): DashboardResponse {
 
   const latestPoint = relativePovertyTrend[relativePovertyTrend.length - 1];
   const previousPoint = relativePovertyTrend[relativePovertyTrend.length - 2];
+  const firstPoint = relativePovertyTrend[0];
+  const bestRegion = regionalStats[0];
+  const lowestRegion = [...regionalStats].sort((left, right) => left.value - right.value)[0];
+  const derivedInsights: DashboardDerivedInsight[] = [
+    {
+      label: 'Overall Poverty Change',
+      value: `${(latestPoint.percentage - firstPoint.percentage).toFixed(1)} pts`,
+      context: `From ${firstPoint.period} (${firstPoint.percentage}%) to ${latestPoint.period} (${latestPoint.percentage}%)`,
+    },
+    {
+      label: 'Regional Development Gap',
+      value: `${(bestRegion.value - lowestRegion.value).toFixed(1)} RDI`,
+      context: `${lowestRegion.region} to ${bestRegion.region} in the 2022 district ranking`,
+    },
+  ];
 
   return {
     headlineMetric: {
@@ -29,6 +44,7 @@ export function getDashboardData(): DashboardResponse {
       year: 2023,
     },
     supportingMetrics,
+    derivedInsights,
     relativePovertyTrend,
     demographicHighlights,
     regionalStats,

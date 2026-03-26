@@ -129,6 +129,35 @@ const Dashboard = () => {
           )}
         </section>
 
+        <section>
+          <div className="mb-6">
+            <Label className="mb-2 block">Analytical Highlights</Label>
+            <Headline level={2}>Derived Insights</Headline>
+            <p className="mt-2 text-sm text-on-surface/60">
+              These headline figures summarize the long-run poverty movement and the current district development gap.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {data?.derivedInsights?.map((insight) => (
+              <Card key={insight.label} className="p-6">
+                <Label className="mb-3 block">{insight.label}</Label>
+                <p className="text-3xl font-display font-bold text-primary">{insight.value}</p>
+                <p className="mt-3 text-sm text-on-surface/60">{insight.context}</p>
+              </Card>
+            ))}
+            {data && !data.derivedInsights?.length && (
+              <Card className="md:col-span-2 p-6">
+                <p className="text-sm text-on-surface/50">Derived dashboard insights will appear after the backend refreshes.</p>
+              </Card>
+            )}
+            {!data && !error && (
+              <Card className="md:col-span-2 p-6">
+                <p className="text-sm text-on-surface/50">Loading derived insights...</p>
+              </Card>
+            )}
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.9fr] gap-8">
           <Card className="flex flex-col h-[470px]">
             <div className="mb-6">

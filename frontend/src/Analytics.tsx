@@ -219,6 +219,115 @@ function getGroupingInsight(
   return `Districts such as ${highText} fall into the higher vulnerability group, indicating comparatively lower development levels. By contrast, districts such as ${lowText} are better positioned and fall into the lower vulnerability group.`;
 }
 
+function getCorrelationInterpretation(variable: string, value: number) {
+  const direction = value >= 0 ? 'positive' : 'negative';
+  const magnitude = Math.abs(value);
+  const strength = magnitude >= 0.7 ? 'strong' : magnitude >= 0.4 ? 'moderate' : 'weak';
+  const labelMap: Record<string, string> = {
+    GDP: 'GDP',
+    UNEMPLOYMENT: 'unemployment',
+    INFLATION: 'inflation',
+    GINI: 'Gini',
+  };
+  const label = labelMap[variable] ?? variable.toLowerCase();
+
+  return `${label} shows a ${strength} ${direction} correlation with poverty.`;
+}
+
+function getTrendInsightLine(
+  trendInsights: NonNullable<AnalyticsResponse['trendInsights']>,
+) {
+  if (trendInsights.overallDirection === 'decreasing') {
+    return `Poverty shows an overall declining pattern across the observed periods, although the survey series still contains noticeable interim fluctuations.`;
+  }
+
+  if (trendInsights.overallDirection === 'increasing') {
+    return `Poverty edges upward overall across the observed periods, though the series also includes meaningful variation between survey years.`;
+  }
+
+  return `Poverty remains broadly stable across the observed periods, with only modest net change between the first and latest survey points.`;
+}
+
+function getRegionalInsightLine(
+  regionalInsights: NonNullable<AnalyticsResponse['regionalInsights']>,
+) {
+  return `Regional disparities remain visible, with ${regionalInsights.bottomDistricts[0]?.region ?? 'lower-ranked districts'} at the more vulnerable end of the distribution and ${regionalInsights.topDistricts[0]?.region ?? 'better-performing districts'} showing stronger development conditions.`;
+}
+
+function getIndicatorInsightLine(correlations: AnalyticsResponse['correlations']) {
+  const strongest = [...correlations].sort(
+    (left, right) => Math.abs(right.correlation) - Math.abs(left.correlation),
+  )[0];
+
+  if (!strongest) {
+    return 'The available indicators provide a comparative view of how poverty moves alongside the wider socioeconomic environment.';
+  }
+
+  return `${strongest.variable} shows the strongest association with poverty in the current indicator set, suggesting that some socioeconomic measures appear more influential than others in this small series.`;
+}
+
+function getPredictionInsightLine(prediction: PovertyPredictionResponse) {
+  const firstForecast = prediction.forecast[0];
+  const lastForecast = prediction.forecast.at(-1);
+
+  if (!firstForecast || !lastForecast) {
+    return 'The forecast should be interpreted as a short-term baseline continuation rather than a full scenario model.';
+  }
+
+  const direction =
+    lastForecast.povertyRate > firstForecast.povertyRate
+      ? 'a slight upward drift'
+      : lastForecast.povertyRate < firstForecast.povertyRate
+        ? 'a slight downward drift'
+        : 'a largely flat path';
+
+  return `The forecast indicates ${direction} over the next five years and should be read as a short-term baseline continuation rather than a full scenario model.`;
+}
+
+function getGroupingSectionInsight(
+  povertyGrouping: NonNullable<AnalyticsResponse['povertyGrouping']>,
+) {
+  const mostVulnerable = povertyGrouping.records.find((record) => record.category === 'Low');
+  const leastVulnerable = [...povertyGrouping.records].reverse().find((record) => record.category === 'High');
+
+  return `The grouping highlights clear district-level differences, with ${mostVulnerable?.region ?? 'the lower-RDI districts'} appearing more vulnerable and ${leastVulnerable?.region ?? 'the higher-RDI districts'} appearing relatively better developed.`;
+}
+
+function getDevelopmentContextInsight(
+  trendInsights: NonNullable<AnalyticsResponse['trendInsights']>,
+  regionalInsights: NonNullable<AnalyticsResponse['regionalInsights']>,
+) {
+  const directionText =
+    trendInsights.overallDirection === 'decreasing'
+      ? 'an overall decline in poverty'
+      : trendInsights.overallDirection === 'increasing'
+        ? 'a slight overall increase in poverty'
+        : 'a broadly stable poverty pattern';
+
+  return `The current evidence suggests ${directionText}, while regional development differences remain pronounced between ${regionalInsights.bottomDistricts[0]?.region ?? 'the more vulnerable districts'} and ${regionalInsights.topDistricts[0]?.region ?? 'the stronger-performing districts'}.`;
+}
+
+function getDevelopmentPovertyAnalysis(regressionSeries: AnalyticsResponse['regressionSeries']) {
+  if (regressionSeries.length === 0) {
+    return 'The available series does not yet provide enough matched observations to discuss the poverty-development relationship.';
+  }
+
+  const first = regressionSeries[0];
+  const last = regressionSeries.at(-1) ?? first;
+  const gdpChange = Number((((last.gdp - first.gdp) / first.gdp) * 100).toFixed(1));
+  const povertyChange = Number((last.povertyRate - first.povertyRate).toFixed(1));
+
+  if (last.gdp > first.gdp && last.povertyRate >= first.povertyRate) {
+    return `Over the observed years, GDP per capita increased by about ${gdpChange}% while poverty changed by ${povertyChange} percentage points. This suggests that stronger development and growth conditions did not automatically translate into lower relative poverty, pointing to the importance of distribution and inclusion.`;
+  }
+
+  if (last.gdp > first.gdp && last.povertyRate < first.povertyRate) {
+    return `Over the observed years, GDP per capita increased by about ${gdpChange}% while poverty fell by ${Math.abs(povertyChange).toFixed(1)} percentage points. This suggests development progress may have supported better poverty outcomes, although the relationship should still be interpreted cautiously.`;
+  }
+
+  return `The combined series shows that poverty and development did not move in a simple one-direction pattern across the observed years. This makes it more defensible to discuss development as an important context for poverty rather than as a single direct cause.`;
+}
+
 function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile: boolean }) {
   const xDomain = getNumericDomain(
     [...series.points.map((point) => point.x), ...series.trendLine.map((point) => point.x)],
@@ -358,7 +467,50 @@ const Analytics = () => {
   const predictionSeries = React.useMemo(() => data?.predictionSeries ?? [], [data]);
   const regressionSeries = React.useMemo(() => data?.regressionSeries ?? [], [data]);
   const scatterSeriesList = React.useMemo(() => data?.scatterSeries ?? [], [data]);
+  const trendInsights = React.useMemo(() => data?.trendInsights ?? null, [data]);
+  const regionalInsights = React.useMemo(() => data?.regionalInsights ?? null, [data]);
   const povertyGrouping = React.useMemo(() => data?.povertyGrouping ?? null, [data]);
+  const trendInsightLine = React.useMemo(
+    () => (trendInsights ? getTrendInsightLine(trendInsights) : null),
+    [trendInsights],
+  );
+  const regionalInsightLine = React.useMemo(
+    () => (regionalInsights ? getRegionalInsightLine(regionalInsights) : null),
+    [regionalInsights],
+  );
+  const indicatorInsightLine = React.useMemo(
+    () => getIndicatorInsightLine(correlationEntries),
+    [correlationEntries],
+  );
+  const predictionInsightLine = React.useMemo(
+    () => (prediction ? getPredictionInsightLine(prediction) : null),
+    [prediction],
+  );
+  const groupingInsightLine = React.useMemo(
+    () => (povertyGrouping ? getGroupingSectionInsight(povertyGrouping) : null),
+    [povertyGrouping],
+  );
+  const developmentContextInsight = React.useMemo(
+    () =>
+      trendInsights && regionalInsights
+        ? getDevelopmentContextInsight(trendInsights, regionalInsights)
+        : null,
+    [trendInsights, regionalInsights],
+  );
+  const developmentPovertyChartData = React.useMemo(
+    () =>
+      regressionSeries
+        .map((point) => ({
+          period: point.period,
+          povertyRate: Number(point.povertyRate.toFixed(1)),
+          gdp: Number(point.gdp.toFixed(0)),
+        })),
+    [regressionSeries],
+  );
+  const developmentPovertyAnalysis = React.useMemo(
+    () => getDevelopmentPovertyAnalysis(regressionSeries),
+    [regressionSeries],
+  );
 
   React.useEffect(() => {
     if (!data) {
@@ -469,7 +621,7 @@ const Analytics = () => {
               <Card className="p-5 sm:p-6">
                 <div className="flex items-center gap-3 mb-4 text-primary">
                   <Sigma size={20} />
-                  <Label className="text-primary/70">Model R²</Label>
+                  <Label className="text-primary/70">Model R^2</Label>
                 </div>
                 <p className="text-4xl font-display font-bold text-primary">{data.modelScore.toFixed(2)}</p>
               </Card>
@@ -501,6 +653,211 @@ const Analytics = () => {
               </div>
             </Card>
 
+            {trendInsights && (
+              <Card className="p-5 sm:p-8">
+                <Headline level={2} className="mb-3">Trend Insights</Headline>
+                <p className="text-sm leading-relaxed text-on-surface/60">
+                  These derived metrics summarize how the poverty rate has changed across the observed survey periods, highlighting direction, extremes, and average level.
+                </p>
+                <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{trendInsightLine}</p>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Overall Change</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{trendInsights.overallChange.toFixed(2)} pts</p>
+                    <p className="mt-2 text-sm text-on-surface/60">{trendInsights.overallPercentChange.toFixed(2)}% from first to latest period</p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Average Rate</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{trendInsights.averageRate.toFixed(2)}%</p>
+                    <p className="mt-2 text-sm text-on-surface/60">Mean poverty rate across all observed periods</p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Minimum</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{trendInsights.minPoint.value.toFixed(1)}%</p>
+                    <p className="mt-2 text-sm text-on-surface/60">{trendInsights.minPoint.period}</p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Maximum</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{trendInsights.maxPoint.value.toFixed(1)}%</p>
+                    <p className="mt-2 text-sm text-on-surface/60">{trendInsights.maxPoint.period}</p>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Trend Summary</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{trendInsights.summary}</p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Recent Step Changes</p>
+                    <div className="mt-3 space-y-2">
+                      {trendInsights.consecutiveChanges.slice(-3).map((change) => (
+                        <div key={`${change.fromPeriod}-${change.toPeriod}`} className="flex items-center justify-between gap-4 text-sm">
+                          <span className="text-on-surface/60">{change.fromPeriod} to {change.toPeriod}</span>
+                          <span className="font-semibold text-primary">{change.percentChange.toFixed(2)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {regionalInsights && (
+              <Card className="p-5 sm:p-8">
+                <Headline level={2} className="mb-3">Regional Insights</Headline>
+                <p className="text-sm leading-relaxed text-on-surface/60">
+                  Lower RDI values indicate higher vulnerability to poverty, while higher RDI values indicate better development conditions and lower vulnerability.
+                </p>
+                <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Key Insight</p>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{regionalInsightLine}</p>
+                </div>
+                <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Most Vulnerable Districts</p>
+                    <div className="mt-4 space-y-3">
+                      {regionalInsights.bottomDistricts.map((district) => (
+                        <div key={`bottom-${district.region}`} className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium">{district.region}</p>
+                            <p className="text-xs text-on-surface/55">Rank {district.rank}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-primary">{district.value.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Best Performing Districts</p>
+                    <div className="mt-4 space-y-3">
+                      {regionalInsights.topDistricts.map((district) => (
+                        <div key={`top-${district.region}`} className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium">{district.region}</p>
+                            <p className="text-xs text-on-surface/55">Rank {district.rank}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-primary">{district.value.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Development Gap</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{regionalInsights.gapValue.toFixed(1)}</p>
+                    <p className="mt-2 text-sm text-on-surface/60">{regionalInsights.gapPercent.toFixed(2)}% gap between highest and lowest RDI</p>
+                    <p className="mt-4 text-sm leading-relaxed text-on-surface/60">{regionalInsights.summary}</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {trendInsights && regionalInsights && povertyGrouping && prediction && (
+              <Card className="p-5 sm:p-8">
+                <Headline level={2} className="mb-3">Poverty and Development</Headline>
+                <p className="text-sm leading-relaxed text-on-surface/60">
+                  This section compares poverty with a matched development trend over time using GDP per capita as the year-based development indicator. It should be read as a contextual relationship rather than as proof of a single direct causal pathway.
+                </p>
+                <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Key Insight</p>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{developmentContextInsight}</p>
+                </div>
+                <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Development Trend Compared with Poverty Rate</p>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                    The chart below merges the poverty series with GDP per capita across the same survey years so the relationship can be read on one timeline.
+                  </p>
+                  <div className="mt-5 h-[340px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={developmentPovertyChartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                        <XAxis
+                          dataKey="period"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          width={isMobile ? 34 : 46}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          width={isMobile ? 44 : 58}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            name === 'Poverty rate' ? `${value.toFixed(1)}%` : `USD ${value.toLocaleString('en-MU')}`,
+                            name,
+                          ]}
+                          contentStyle={{
+                            borderRadius: '12px',
+                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                            backgroundColor: 'var(--app-surface-container-lowest)',
+                          }}
+                        />
+                        {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="povertyRate"
+                          name="Poverty rate"
+                          stroke="var(--app-primary)"
+                          strokeWidth={3}
+                          dot={{ r: 4 }}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="gdp"
+                          name="GDP per capita"
+                          stroke="#0f766e"
+                          strokeWidth={3}
+                          dot={{ r: 3 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{developmentPovertyAnalysis}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-on-surface/60">
+                      The regional RDI evidence elsewhere on the page still matters here: it shows that development is uneven across districts, so national growth should not be assumed to reduce poverty evenly across all parts of Mauritius.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <Card className="p-5 sm:p-8">
+              <Headline level={2} className="mb-3">Indicator Relationships</Headline>
+              <p className="text-sm leading-relaxed text-on-surface/60">
+                These correlations show how the poverty rate moves with the main socioeconomic indicators used in the regression dataset. They should be read as relationship signals, not proof of causation.
+              </p>
+              <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{indicatorInsightLine}</p>
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {correlationEntries.map((entry) => (
+                  <div key={`relationship-${entry.variable}`} className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">{entry.variable}</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{entry.correlation.toFixed(3)}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{getCorrelationInterpretation(entry.variable, entry.correlation)}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
             {prediction && (
               <Card className="p-5 sm:p-8">
                 <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -510,6 +867,10 @@ const Analytics = () => {
                       <Headline level={2}>{prediction.title}</Headline>
                     </div>
                     <p className="text-sm leading-relaxed text-on-surface/60">{prediction.explanation}</p>
+                    <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{predictionInsightLine}</p>
+                    </div>
                     <div className="mt-6 h-[260px] sm:h-[340px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={prediction.chartSeries} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
@@ -581,6 +942,12 @@ const Analytics = () => {
                         This is a baseline forecast, not a complex scenario model. It uses the existing historical poverty trend already stored in SQLite and applies a straight-line regression from year to poverty rate.
                       </p>
                     </div>
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Limitation Note</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        These findings are based on the available indicators and observed survey points. The projection is a baseline estimate and does not account for policy shifts, external shocks, or unobserved factors.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -597,6 +964,10 @@ const Analytics = () => {
                     <p className="text-sm leading-relaxed text-on-surface/60">
                       The Relative Development Index (RDI) is used here as a simple proxy for regional development level. Lower RDI values indicate weaker socioeconomic conditions and therefore higher vulnerability to poverty, while higher RDI values indicate relatively stronger development conditions and lower vulnerability.
                     </p>
+                    <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{groupingInsightLine}</p>
+                    </div>
                     <div className="mt-6 h-[240px] sm:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
@@ -870,24 +1241,11 @@ const Analytics = () => {
                     {activeCorrelation && (
                       <div className="space-y-4">
                         <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Quick Variable Switch</p>
-                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            {coefficientEntries.map((coefficient) => (
-                              <button
-                                key={`quick-${coefficient.variable}`}
-                                type="button"
-                                onClick={() => setSelectedVariable(coefficient.variable.toUpperCase())}
-                                className={`rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
-                                  selectedVariable?.toUpperCase() === coefficient.variable.toUpperCase()
-                                    ? 'border-primary bg-primary/8'
-                                    : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
-                                }`}
-                              >
-                                <span className="block font-medium">{coefficient.variable}</span>
-                                <span className="mt-1 block text-xs text-on-surface/55">{coefficient.coefficient}</span>
-                              </button>
-                            ))}
-                          </div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Active Variable</p>
+                          <p className="mt-2 text-lg font-semibold text-on-surface">{scatterSeries.label}</p>
+                          <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                            The variable cards above are the main selector for the regression explorer. This panel focuses on interpreting the currently selected relationship.
+                          </p>
                         </div>
                         <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
                           <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Correlation</p>
@@ -1124,3 +1482,4 @@ const Analytics = () => {
 };
 
 export default Analytics;
+

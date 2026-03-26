@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { demographicBreakdownSchema } from './dashboard.schema.ts';
 
 const clusterCategorySchema = z.enum(['Low', 'Medium', 'High']);
+const trendExtremePointSchema = z.object({
+  period: z.string().min(1),
+  value: z.number(),
+});
 
 export const povertyPredictionResponseSchema = z.object({
   title: z.string().min(1),
@@ -111,6 +115,47 @@ export const analyticsResponseSchema = z.object({
       ),
     }),
   ),
+  trendInsights: z.object({
+    overallDirection: z.enum(['increasing', 'decreasing', 'stable']),
+    overallChange: z.number(),
+    overallPercentChange: z.number(),
+    averageRate: z.number(),
+    minPoint: trendExtremePointSchema,
+    maxPoint: trendExtremePointSchema,
+    consecutiveChanges: z.array(
+      z.object({
+        fromPeriod: z.string().min(1),
+        toPeriod: z.string().min(1),
+        fromValue: z.number(),
+        toValue: z.number(),
+        change: z.number(),
+        percentChange: z.number(),
+      }),
+    ),
+    summary: z.string().min(1),
+  }),
+  regionalInsights: z.object({
+    explanation: z.string().min(1),
+    topDistricts: z.array(
+      z.object({
+        region: z.string().min(1),
+        value: z.number(),
+        year: z.number().int(),
+        rank: z.number().int(),
+      }),
+    ),
+    bottomDistricts: z.array(
+      z.object({
+        region: z.string().min(1),
+        value: z.number(),
+        year: z.number().int(),
+        rank: z.number().int(),
+      }),
+    ),
+    gapValue: z.number(),
+    gapPercent: z.number(),
+    summary: z.string().min(1),
+  }),
   povertyGrouping: z.object({
     title: z.string().min(1),
     basis: z.string().min(1),

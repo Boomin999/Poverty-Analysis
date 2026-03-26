@@ -23,6 +23,12 @@ export interface DashboardSupportMetric {
   context: string;
 }
 
+export interface DashboardDerivedInsight {
+  label: string;
+  value: string;
+  context: string;
+}
+
 export interface DemographicGroup {
   group: string;
   value: number;
@@ -55,6 +61,7 @@ export interface Publication {
 export interface DashboardResponse {
   headlineMetric: HeadlineMetric;
   supportingMetrics: DashboardSupportMetric[];
+  derivedInsights: DashboardDerivedInsight[];
   relativePovertyTrend: RelativePovertyTrendPoint[];
   demographicHighlights: DemographicBreakdown[];
   regionalStats: DashboardRegionSnapshot[];

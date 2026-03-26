@@ -110,6 +110,47 @@ export interface PovertyPredictionValue {
   povertyRate: number;
 }
 
+export interface TrendExtremePoint {
+  period: string;
+  value: number;
+}
+
+export interface ConsecutiveTrendChange {
+  fromPeriod: string;
+  toPeriod: string;
+  fromValue: number;
+  toValue: number;
+  change: number;
+  percentChange: number;
+}
+
+export interface TrendInsights {
+  overallDirection: 'increasing' | 'decreasing' | 'stable';
+  overallChange: number;
+  overallPercentChange: number;
+  averageRate: number;
+  minPoint: TrendExtremePoint;
+  maxPoint: TrendExtremePoint;
+  consecutiveChanges: ConsecutiveTrendChange[];
+  summary: string;
+}
+
+export interface RegionalInsightDistrict {
+  region: string;
+  value: number;
+  year: number;
+  rank: number;
+}
+
+export interface RegionalInsights {
+  explanation: string;
+  topDistricts: RegionalInsightDistrict[];
+  bottomDistricts: RegionalInsightDistrict[];
+  gapValue: number;
+  gapPercent: number;
+  summary: string;
+}
+
 export interface PovertyPredictionResponse {
   title: string;
   method: string;
@@ -136,6 +177,8 @@ export interface AnalyticsResponse {
   actualPredictedSeries: ActualPredictedPoint[];
   correlationMatrix: CorrelationMatrixCell[];
   scatterSeries: ScatterSeries[];
+  trendInsights: TrendInsights;
+  regionalInsights: RegionalInsights;
   povertyGrouping: PovertyGrouping;
   demographicBreakdowns: DemographicBreakdown[];
   legacyCharts: AnalyticsChartAsset[];
