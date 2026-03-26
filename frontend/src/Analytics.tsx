@@ -328,6 +328,63 @@ function getDevelopmentPovertyAnalysis(regressionSeries: AnalyticsResponse['regr
   return `The combined series shows that poverty and development did not move in a simple one-direction pattern across the observed years. This makes it more defensible to discuss development as an important context for poverty rather than as a single direct cause.`;
 }
 
+function getScatterAxisMeta(series: ScatterSeries) {
+  const yAxisLabel = 'Poverty rate (%)';
+
+  if (series.variable === 'GDP') {
+    return {
+      xAxisLabel: 'GDP per capita (USD per person)',
+      yAxisLabel,
+      formatXTick: (value: number) => value.toLocaleString('en-MU', { maximumFractionDigits: 0 }),
+      formatYTick: (value: number) => `${value.toFixed(1)}%`,
+      formatXValue: (value: number) => `USD ${value.toLocaleString('en-MU', { maximumFractionDigits: 0 })}`,
+      formatYValue: (value: number) => `${value.toFixed(2)}%`,
+    };
+  }
+
+  if (series.variable === 'UNEMPLOYMENT') {
+    return {
+      xAxisLabel: 'Unemployment rate (%)',
+      yAxisLabel,
+      formatXTick: (value: number) => `${value.toFixed(1)}%`,
+      formatYTick: (value: number) => `${value.toFixed(1)}%`,
+      formatXValue: (value: number) => `${value.toFixed(2)}%`,
+      formatYValue: (value: number) => `${value.toFixed(2)}%`,
+    };
+  }
+
+  if (series.variable === 'INFLATION') {
+    return {
+      xAxisLabel: 'Inflation rate (%)',
+      yAxisLabel,
+      formatXTick: (value: number) => `${value.toFixed(1)}%`,
+      formatYTick: (value: number) => `${value.toFixed(1)}%`,
+      formatXValue: (value: number) => `${value.toFixed(2)}%`,
+      formatYValue: (value: number) => `${value.toFixed(2)}%`,
+    };
+  }
+
+  if (series.variable === 'GINI') {
+    return {
+      xAxisLabel: 'Gini index',
+      yAxisLabel,
+      formatXTick: (value: number) => value.toFixed(1),
+      formatYTick: (value: number) => `${value.toFixed(1)}%`,
+      formatXValue: (value: number) => value.toFixed(2),
+      formatYValue: (value: number) => `${value.toFixed(2)}%`,
+    };
+  }
+
+  return {
+    xAxisLabel: series.label,
+    yAxisLabel,
+    formatXTick: (value: number) => value.toFixed(2),
+    formatYTick: (value: number) => `${value.toFixed(1)}%`,
+    formatXValue: (value: number) => value.toFixed(2),
+    formatYValue: (value: number) => `${value.toFixed(2)}%`,
+  };
+}
+
 function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile: boolean }) {
   const xDomain = getNumericDomain(
     [...series.points.map((point) => point.x), ...series.trendLine.map((point) => point.x)],
@@ -337,12 +394,16 @@ function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile
     [...series.points.map((point) => point.y), ...series.trendLine.map((point) => point.y)],
     0.18,
   );
+  const axisMeta = getScatterAxisMeta(series);
 
   return (
     <Card className="relative z-10 p-5 sm:p-6" onClick={(event) => event.stopPropagation()}>
       <Headline level={3} className="text-lg">{`Poverty vs ${series.label}`}</Headline>
       <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
         Real observed points with a sampled fitted trend line based on the regression relationship.
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-on-surface/50">
+        X-axis: {axisMeta.xAxisLabel}. Y-axis: {axisMeta.yAxisLabel}.
       </p>
       <div className="mt-5 h-[220px] sm:h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -355,6 +416,7 @@ function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
+              tickFormatter={axisMeta.formatXTick}
               tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
             />
             <YAxis
@@ -364,12 +426,19 @@ function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile
               axisLine={false}
               tickLine={false}
               width={isMobile ? 28 : 40}
+              tickFormatter={axisMeta.formatYTick}
               tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
             />
             <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
               formatter={(value: number, name: string) => [
-                typeof value === 'number' ? value.toFixed(3) : value,
+                typeof value === 'number'
+                  ? name === (isMobile ? 'Est.' : 'Estimated path') ||
+                    name === (isMobile ? 'Obs.' : 'Observed') ||
+                    name === (isMobile ? 'Fit' : 'Trend line')
+                    ? axisMeta.formatYValue(value)
+                    : axisMeta.formatXValue(value)
+                  : value,
                 name,
               ]}
               labelFormatter={(_, payload) => {
@@ -579,6 +648,10 @@ const Analytics = () => {
             0.18,
           )
         : ([0, 1] as const),
+    [scatterSeries],
+  );
+  const scatterAxisMeta = React.useMemo(
+    () => (scatterSeries ? getScatterAxisMeta(scatterSeries) : null),
     [scatterSeries],
   );
 
@@ -1154,6 +1227,11 @@ const Analytics = () => {
                       <p className="mt-2 text-sm text-on-surface/50">
                         Solid dots are observed survey points. The continuous line is a modeled trend sampled across the variable range to make the relationship easier to read.
                       </p>
+                      {scatterAxisMeta && (
+                        <p className="mt-2 text-xs leading-relaxed text-on-surface/50">
+                          X-axis: {scatterAxisMeta.xAxisLabel}. Y-axis: {scatterAxisMeta.yAxisLabel}.
+                        </p>
+                      )}
                       {scatterSeries.label === 'Gini' && (
                         <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
                           <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">What Gini Means</p>
@@ -1174,6 +1252,7 @@ const Analytics = () => {
                           axisLine={false}
                           tickLine={false}
                           interval="preserveStartEnd"
+                          tickFormatter={scatterAxisMeta?.formatXTick}
                           tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
                         />
                         <YAxis
@@ -1185,12 +1264,19 @@ const Analytics = () => {
                           axisLine={false}
                           tickLine={false}
                           width={isMobile ? 28 : 40}
+                          tickFormatter={scatterAxisMeta?.formatYTick}
                           tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
                         />
                         <Tooltip
                           cursor={{ strokeDasharray: '3 3' }}
                           formatter={(value: number, name: string) => [
-                            typeof value === 'number' ? value.toFixed(3) : value,
+                            typeof value === 'number'
+                              ? name === (isMobile ? 'Est.' : 'Estimated path') ||
+                                name === (isMobile ? 'Obs.' : 'Observed points') ||
+                                name === (isMobile ? 'Fit' : 'Modeled line')
+                                ? scatterAxisMeta?.formatYValue(value) ?? `${value.toFixed(2)}%`
+                                : scatterAxisMeta?.formatXValue(value) ?? value.toFixed(2)
+                              : value,
                             name,
                           ]}
                           labelFormatter={(_, payload) => {
