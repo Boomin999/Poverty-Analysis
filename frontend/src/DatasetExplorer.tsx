@@ -18,7 +18,7 @@ function getUsageLabel(datasetId: string) {
     return 'Trend Analysis / Poverty Reporting';
   }
 
-  return 'Supporting Data Source';
+  return 'Supporting Dataset';
 }
 
 const DatasetExplorer = () => {
@@ -79,35 +79,35 @@ const DatasetExplorer = () => {
     <Layout>
       <div className="space-y-8">
         <section>
-          <Label className="mb-2 block">Data Transparency</Label>
-          <Headline level={1} className="mb-4">Data Sources</Headline>
+          <Label className="mb-2 block">Structured Data Layer</Label>
+          <Headline level={1} className="mb-4">Datasets</Headline>
           <p className="text-on-surface/60 max-w-2xl">
-            This section provides an overview of the datasets used in the analysis. It supports transparency and reproducibility by allowing users to inspect the structure and sample records of each dataset.
+            This section provides a preview of the structured datasets used in the analysis. It supports transparency and reproducibility by showing sample columns and records derived from the source publications.
           </p>
           {!isLoadingDatasets && datasets.length > 0 && (
             <p className="mt-3 text-sm text-on-surface/50">
-              {datasets.length} datasets are currently documented across poverty indicators, reports, RDI materials, World Bank exports, and geospatial inputs.
+              {datasets.length} structured datasets are currently documented across poverty indicators, reports, RDI materials, World Bank exports, and geospatial inputs.
             </p>
           )}
         </section>
 
         {error && (
           <Card className="border border-error/30">
-            <Headline level={3} className="mb-2">Data source request failed</Headline>
+            <Headline level={3} className="mb-2">Dataset request failed</Headline>
             <p className="text-sm text-on-surface/60">{error}</p>
           </Card>
         )}
 
         <div className="space-y-6">
           <div className="max-w-md">
-            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface/40">Select Data Source</Label>
+            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-on-surface/40">Select Dataset</Label>
             <select
               value={selectedDatasetId}
               onChange={handleDatasetChange}
               className="w-full bg-surface-container-low border border-outline-variant rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
               disabled={isLoadingDatasets}
             >
-              <option value="">{isLoadingDatasets ? 'Loading data sources...' : 'Choose a data source...'}</option>
+              <option value="">{isLoadingDatasets ? 'Loading datasets...' : 'Choose a dataset...'}</option>
               {datasets.map((dataset) => (
                 <option key={dataset.id} value={dataset.id}>
                   {dataset.name} ({dataset.format.toUpperCase()})
@@ -185,7 +185,7 @@ const DatasetExplorer = () => {
                     </div>
                   ) : (
                     <div className="h-full flex items-center justify-center text-sm text-on-surface/50">
-                      Select a data source to load its preview.
+                      Select a dataset to load its preview.
                     </div>
                   )}
                 </div>
@@ -195,9 +195,9 @@ const DatasetExplorer = () => {
                 <div className="w-16 h-16 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface/20 mb-4">
                   <Eye size={32} />
                 </div>
-                <Headline level={3} className="text-on-surface/40">Select a data source to review</Headline>
+                <Headline level={3} className="text-on-surface/40">Select a dataset to review</Headline>
                 <p className="text-sm text-on-surface/30 mt-2 max-w-xs">
-                  Choose a data source from the dropdown above to inspect its metadata and sample records.
+                  Choose a dataset from the dropdown above to inspect its metadata and sample records.
                 </p>
               </div>
             )}

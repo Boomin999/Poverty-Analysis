@@ -77,7 +77,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         <nav className="flex-1 space-y-1">
           <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" />
-          <SidebarItem icon={Database} label="Data Sources" to="/dataset-explorer" />
+          <SidebarItem icon={Database} label="Datasets" to="/dataset-explorer" />
           <SidebarItem icon={BarChart3} label="Analytics" to="/analytics" />
           <SidebarItem icon={Map} label="Map View" to="/map" />
           <SidebarItem icon={MessageSquare} label="Talk to the Data" to="/talk-to-data" />
@@ -115,7 +115,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {/* Bottom Navigation - Mobile Only */}
         <nav className="fixed bottom-0 left-0 right-0 h-14 bg-surface-container-low border-t border-outline-variant flex items-center justify-around px-1 lg:hidden z-40 glass-panel">
           <BottomNavItem icon={LayoutDashboard} label="Dashboard" to="/" />
-          <BottomNavItem icon={Database} label="Data" to="/dataset-explorer" />
+          <BottomNavItem icon={Database} label="Datasets" to="/dataset-explorer" />
           <BottomNavItem icon={BarChart3} label="Analytics" to="/analytics" />
           <BottomNavItem icon={Map} label="Map" to="/map" />
           <BottomNavItem icon={MessageSquare} label="Talk" to="/talk-to-data" />

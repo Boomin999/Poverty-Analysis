@@ -337,6 +337,9 @@ const Dashboard = () => {
             <div>
               <Label className="mb-2 block">Research Archive</Label>
               <Headline level={2}>Source Publications</Headline>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-on-surface/60">
+                These publications provide the primary evidence base for the system. They explain the official sources from which poverty, regional, and socioeconomic indicators were derived and help justify the credibility of the analysis.
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

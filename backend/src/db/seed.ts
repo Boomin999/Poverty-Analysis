@@ -100,7 +100,7 @@ const publicationCatalog: Publication[] = [
     author: 'Statistics Mauritius',
     date: '2022-12-01',
     category: 'Regional Index',
-    excerpt: 'District, ward, and village council area measurements used to compare spatial development outcomes across Mauritius and Rodrigues.',
+    excerpt: 'District, ward, and village council area measurements used to compare spatial development outcomes across Mauritius.',
   },
   {
     id: 'poverty-2012',
