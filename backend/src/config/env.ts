@@ -18,6 +18,7 @@ export const env = {
     raw: path.join(dataDirectory, 'raw'),
     processed: path.join(dataDirectory, 'processed'),
     spreadsheets: path.join(dataDirectory, 'raw', 'spreadsheets'),
+    geospatial: path.join(dataDirectory, 'raw', 'geospatial'),
     povertyReports: path.join(dataDirectory, 'raw', 'poverty_reports'),
     worldBank: path.join(dataDirectory, 'raw', 'world_bank'),
   },

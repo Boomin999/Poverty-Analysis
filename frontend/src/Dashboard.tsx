@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bar,
   CartesianGrid,
@@ -14,8 +15,29 @@ import {
 import { ArrowUpRight, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import type { DashboardResponse } from '../../shared/api';
 import { fetchDashboard } from './lib/api';
-import { Headline, Card, Label, Button } from './components/UI';
+import { Headline, Card, Label } from './components/UI';
 import { Layout } from './components/Layout';
+
+const compactNumber = new Intl.NumberFormat('en-MU', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const formatMetricValue = (value: number, unit: string) => {
+  if (unit === 'households') {
+    return `${compactNumber.format(value)} households`;
+  }
+
+  if (unit === 'Rs/month') {
+    return `Rs ${value.toLocaleString('en-MU')}`;
+  }
+
+  if (unit === 'Rs Mn') {
+    return `Rs ${value.toLocaleString('en-MU')} Mn`;
+  }
+
+  return `${value.toLocaleString('en-MU')} ${unit}`;
+};
 
 const Dashboard = () => {
   const [data, setData] = React.useState<DashboardResponse | null>(null);
@@ -46,36 +68,39 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-12">
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div className="max-w-2xl">
+        <section className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr]">
+          <div className="max-w-3xl">
             <Label className="mb-4 block">Mauritius Poverty Insights</Label>
             <Headline level={1} className="mb-6">
-              Poverty Intelligence Hub: <br />
-              <span className="text-primary/60 italic">Evidence for Relative Poverty Analysis</span>
+              Relative Poverty in Mauritius
+              <br />
+              <span className="text-primary/60 italic">Cleaned indicators, demographic risk, and district development evidence</span>
             </Headline>
             <p className="text-lg text-on-surface/70 leading-relaxed">
-              Explore dashboard metrics, dataset previews, and guided answers built around poverty indicators and official Mauritius data sources.
+              The dashboard now brings together Statistics Mauritius poverty indicators, 2023 demographic breakdowns, and district-level Relative Development Index data to support a more grounded national view.
             </p>
           </div>
-          <div className="flex gap-4">
-            <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
-              <Label className="mb-1 block">{headlineMetric?.label ?? 'Loading metric'}</Label>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-display font-bold text-primary">
-                  {headlineMetric ? `${headlineMetric.value}${headlineMetric.unit}` : '--'}
+
+          <Card className="border border-primary/10 bg-primary/5">
+            <Label className="mb-2 block">{headlineMetric?.label ?? 'Loading metric'}</Label>
+            <div className="flex items-baseline gap-3">
+              <span className="text-4xl font-display font-bold text-primary">
+                {headlineMetric ? `${headlineMetric.value}${headlineMetric.unit}` : '--'}
+              </span>
+              {headlineMetric && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-3 py-1 text-xs font-semibold text-on-surface/70">
+                  {headlineMetric.trend === 'down' && <TrendingDown size={13} className="text-green-600" />}
+                  {headlineMetric.trend === 'up' && <TrendingUp size={13} className="text-error" />}
+                  {headlineMetric.trend === 'stable' && <Minus size={13} className="text-on-surface/40" />}
+                  {Math.abs(headlineMetric.delta).toFixed(1)}
+                  {headlineMetric.unit} vs previous survey
                 </span>
-                {headlineMetric && (
-                  <span className="text-xs font-semibold flex items-center gap-0.5 text-on-surface/70">
-                    {headlineMetric.trend === 'down' && <TrendingDown size={12} className="text-green-600" />}
-                    {headlineMetric.trend === 'up' && <TrendingUp size={12} className="text-error" />}
-                    {headlineMetric.trend === 'stable' && <Minus size={12} className="text-on-surface/40" />}
-                    {Math.abs(headlineMetric.delta)}
-                    {headlineMetric.unit}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
-          </div>
+            <p className="mt-4 text-sm leading-relaxed text-on-surface/60">
+              Latest headline rate from the 2023 poverty update, compared with the previous survey point in 2017.
+            </p>
+          </Card>
         </section>
 
         {error && (
@@ -85,12 +110,31 @@ const Dashboard = () => {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-2 flex flex-col h-[450px]">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {data?.supportingMetrics.map((metric) => (
+            <Card key={metric.label} className="p-6">
+              <Label className="mb-3 block">{metric.label}</Label>
+              <p className="text-3xl font-display font-bold text-primary">
+                {formatMetricValue(metric.value, metric.unit)}
+              </p>
+              <p className="mt-3 text-sm text-on-surface/60">
+                {metric.context} ({metric.year})
+              </p>
+            </Card>
+          ))}
+          {!data && !error && (
+            <Card className="md:col-span-3 p-6">
+              <p className="text-sm text-on-surface/50">Loading supporting indicators...</p>
+            </Card>
+          )}
+        </section>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_0.9fr] gap-8">
+          <Card className="flex flex-col h-[470px]">
             <div className="mb-6">
               <Headline level={3}>Relative Poverty Trend in Mauritius</Headline>
               <p className="text-sm text-on-surface/50">
-                Tracking the number of persons and share of the population in relative poverty from 1996/97 to 2023
+                Number of persons in relative poverty and the corresponding poverty rate from 1996/97 to 2023
               </p>
             </div>
             <div className="flex-1">
@@ -137,7 +181,7 @@ const Dashboard = () => {
                     <Bar
                       yAxisId="right"
                       dataKey="number"
-                      name="Number"
+                      name="Persons (000)"
                       fill="var(--app-primary-container)"
                       stroke="var(--app-on-surface)"
                       strokeWidth={1.5}
@@ -149,7 +193,7 @@ const Dashboard = () => {
                       yAxisId="left"
                       type="linear"
                       dataKey="percentage"
-                      name="Percentage"
+                      name="Poverty rate"
                       stroke="var(--app-secondary)"
                       strokeWidth={4}
                       dot={{ r: 4.5, fill: 'var(--app-secondary)', stroke: 'var(--app-on-surface)', strokeWidth: 1.5 }}
@@ -165,41 +209,106 @@ const Dashboard = () => {
           </Card>
 
           <Card className="flex flex-col">
-            <Headline level={3} className="mb-6">Regional Indices</Headline>
-            <div className="space-y-6 flex-1 overflow-y-auto">
-              {data?.regionalStats.map((stat) => (
-                <div key={stat.region} className="group cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold">{stat.region}</span>
-                    <span className="text-sm font-display font-bold">{stat.index}%</span>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <Headline level={3}>Key Findings</Headline>
+                <p className="mt-2 text-sm text-on-surface/50">
+                  Short evidence statements drawn from the cleaned poverty workbooks.
+                </p>
+              </div>
+              <Link
+                to="/analytics"
+                className="inline-flex items-center gap-2 rounded-full bg-surface-container px-4 py-2 text-xs font-semibold text-on-surface/70 transition-colors hover:bg-surface-container-high"
+              >
+                Analytics
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {data?.keyFindings.map((finding) => (
+                <div key={finding} className="rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                  <p className="text-sm leading-relaxed text-on-surface/70">{finding}</p>
+                </div>
+              ))}
+              {!data && !error && <p className="text-sm text-on-surface/50">Loading highlights...</p>}
+            </div>
+          </Card>
+        </div>
+
+        <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8">
+          <Card className="p-8">
+            <div className="mb-6">
+              <Label className="mb-2 block">2023 Breakdown</Label>
+              <Headline level={2}>Demographic Poverty Profiles</Headline>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {data?.demographicHighlights.map((section) => (
+                <div key={section.category} className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <Headline level={3} className="text-lg">{section.category}</Headline>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-on-surface/40">{section.year}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-1000 group-hover:bg-secondary"
-                      style={{ width: `${stat.index}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-on-surface/40 uppercase font-bold tracking-wider">Pop: {stat.population}</span>
-                    {stat.trend === 'down' && <TrendingDown size={14} className="text-green-600" />}
-                    {stat.trend === 'up' && <TrendingUp size={14} className="text-error" />}
-                    {stat.trend === 'stable' && <Minus size={14} className="text-on-surface/30" />}
+                  <div className="space-y-3">
+                    {section.groups.map((group) => (
+                      <div key={group.group}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="font-medium">{group.group}</span>
+                          <span className="font-semibold text-primary">{group.value}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(group.value * 4, 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
-              {!data && <p className="text-sm text-on-surface/50">Loading regional data...</p>}
             </div>
-            <Button variant="secondary" className="w-full mt-8">View Detailed Map</Button>
           </Card>
-        </div>
+
+          <Card className="flex flex-col">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <Headline level={3}>District Development Leaders</Headline>
+                <p className="mt-2 text-sm text-on-surface/50">
+                  Highest district mean RDI values from the 2022 regional dataset.
+                </p>
+              </div>
+              <Link
+                to="/map"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-container"
+              >
+                Open Map
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {data?.regionalStats.map((stat) => (
+                <div key={stat.region} className="rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold">{stat.rank}. {stat.region}</span>
+                    <span className="text-sm font-display font-bold text-primary">{stat.value}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-container-high">
+                    <div className="h-full rounded-full bg-secondary" style={{ width: `${stat.value}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-on-surface/45">
+                    {stat.note} ({stat.year})
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </section>
 
         <section>
           <div className="flex items-end justify-between mb-8">
             <div>
               <Label className="mb-2 block">Research Archive</Label>
-              <Headline level={2}>Recent Publications</Headline>
+              <Headline level={2}>Source Publications</Headline>
             </div>
-            <Button variant="secondary">Browse Archive</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {data?.publications.map((publication) => (
@@ -213,7 +322,7 @@ const Dashboard = () => {
                 <Headline level={3} className="mb-3 group-hover:text-primary transition-colors">
                   {publication.title}
                 </Headline>
-                <p className="text-sm text-on-surface/60 mb-6 line-clamp-2">
+                <p className="text-sm text-on-surface/60 mb-6 line-clamp-3">
                   {publication.excerpt}
                 </p>
                 <div className="flex items-center gap-4 pt-6 border-t border-outline-variant">

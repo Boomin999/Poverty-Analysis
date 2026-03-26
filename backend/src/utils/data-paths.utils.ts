@@ -9,6 +9,10 @@ export function getRawSpreadsheetPath(...segments: string[]) {
   return path.join(env.paths.spreadsheets, ...segments);
 }
 
+export function getRawGeospatialPath(...segments: string[]) {
+  return path.join(env.paths.geospatial, ...segments);
+}
+
 export function getRawPovertyReportPath(...segments: string[]) {
   return path.join(env.paths.povertyReports, ...segments);
 }

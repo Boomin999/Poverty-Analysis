@@ -81,4 +81,24 @@
   .glass-panel {
     @apply bg-surface/80 backdrop-blur-xl border-b border-outline-variant;
   }
+
+  .leaflet-container {
+    background: var(--app-surface-container-low);
+    color: var(--app-on-surface);
+    font-family: var(--font-sans);
+  }
+
+  .leaflet-bar a,
+  .leaflet-bar a:hover {
+    background: var(--app-surface-container-lowest);
+    color: var(--app-on-surface);
+    border-bottom-color: var(--app-outline-variant);
+  }
+
+  .leaflet-tooltip {
+    background: var(--app-surface-container-lowest);
+    border: 1px solid var(--app-outline-variant);
+    color: var(--app-on-surface);
+    box-shadow: var(--app-shadow-ambient);
+  }
 }

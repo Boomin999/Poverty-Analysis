@@ -1,8 +1,11 @@
 export type {
+  DashboardRegionSnapshot,
+  DashboardSupportMetric,
   DashboardResponse,
+  DemographicBreakdown,
+  DemographicGroup,
   HeadlineMetric,
   Publication,
-  RegionalStat,
   RelativePovertyTrendPoint,
   TrendDirection,
 } from './dashboard.ts';
@@ -14,6 +17,12 @@ export type {
   DatasetPreviewResponse,
 } from './dataset.ts';
 export type { ChatRequest, ChatResponse, ChatSource } from './chat.ts';
-export type { AnalyticsResponse } from './analytics.ts';
-export type { MapResponse } from './map.ts';
+export type {
+  AnalyticsResponse,
+  CorrelationInsight,
+  PredictionPoint,
+  RegressionCoefficient,
+  RegressionObservation,
+} from './analytics.ts';
+export type { MapAreaHighlight, MapOverview, MapRegion, MapResponse } from './map.ts';
 export type { ApiError } from './common.ts';

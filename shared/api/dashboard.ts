@@ -15,12 +15,32 @@ export interface RelativePovertyTrendPoint {
   number: number;
 }
 
-export interface RegionalStat {
-  region: string;
-  index: number;
-  trend: TrendDirection;
-  population: string;
+export interface DashboardSupportMetric {
+  label: string;
+  value: number;
+  unit: string;
   year: number;
+  context: string;
+}
+
+export interface DemographicGroup {
+  group: string;
+  value: number;
+}
+
+export interface DemographicBreakdown {
+  category: string;
+  year: number;
+  groups: DemographicGroup[];
+}
+
+export interface DashboardRegionSnapshot {
+  region: string;
+  value: number;
+  unit: string;
+  year: number;
+  note: string;
+  rank: number;
 }
 
 export interface Publication {
@@ -34,7 +54,10 @@ export interface Publication {
 
 export interface DashboardResponse {
   headlineMetric: HeadlineMetric;
+  supportingMetrics: DashboardSupportMetric[];
   relativePovertyTrend: RelativePovertyTrendPoint[];
-  regionalStats: RegionalStat[];
+  demographicHighlights: DemographicBreakdown[];
+  regionalStats: DashboardRegionSnapshot[];
   publications: Publication[];
+  keyFindings: string[];
 }
