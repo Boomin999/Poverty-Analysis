@@ -4,13 +4,18 @@ import type {
   AnalyticsChartAsset,
   CorrelationMatrixCell,
   CorrelationInsight,
+  PovertyClusterCategory,
+  PovertyGrouping,
+  PovertyPredictionResponse,
   RegressionCoefficient,
   RegressionObservation,
   ScatterSeries,
 } from '../../../shared/api/index.ts';
 import {
+  readHistoricalPovertyTrend,
   readDemographicBreakdowns,
   readPredictionSeries,
+  readRegionalAnalyticsSeries,
   readRegressionSeries,
 } from '../repositories/analytics.repository.ts';
 
@@ -148,6 +153,20 @@ function getPeriodStartYear(period: string) {
   return match ? Number(match[0]) : null;
 }
 
+function getRepresentativeYear(period: string) {
+  const compactRange = period.match(/^(\d{4})\/(\d{2})$/);
+
+  if (compactRange) {
+    const startYear = Number(compactRange[1]);
+    const endYearSuffix = Number(compactRange[2]);
+    const centuryBase = Math.floor(startYear / 100) * 100;
+
+    return centuryBase + endYearSuffix;
+  }
+
+  return getPeriodStartYear(period);
+}
+
 function buildInterpolatedPoints(points: Array<{ x: number; y: number; period: string }>) {
   const interpolated: Array<{ x: number; y: number; period: string }> = [];
 
@@ -192,6 +211,114 @@ function getStrength(value: number): CorrelationInsight['strength'] {
   }
 
   return 'weak';
+}
+
+function groupRegionalValuesByTertile(
+  rows: ReturnType<typeof readRegionalAnalyticsSeries>,
+): PovertyGrouping {
+  const sortedRows = [...rows].sort((left, right) => left.value - right.value);
+  const total = Math.max(sortedRows.length, 1);
+
+  const getCategory = (index: number): PovertyClusterCategory => {
+    if (index < total / 3) {
+      return 'Low';
+    }
+
+    if (index < (2 * total) / 3) {
+      return 'Medium';
+    }
+
+    return 'High';
+  };
+
+  const interpretationByCategory: Record<PovertyClusterCategory, string> = {
+    Low: 'Lower RDI band, which signals comparatively higher deprivation pressure and therefore higher poverty vulnerability.',
+    Medium: 'Middle RDI band, showing a mixed regional position between lower-performing and stronger districts.',
+    High: 'Higher RDI band, meaning the district is relatively better placed on the development index used in this project.',
+  };
+
+  const records = sortedRows.map((row, index) => ({
+    ...row,
+    category: getCategory(index),
+    interpretation: interpretationByCategory[getCategory(index)],
+  }));
+
+  return {
+    title: 'Regional Poverty Vulnerability Grouping',
+    basis:
+      'Districts are sorted by their 2022 Relative Development Index (RDI) and split into three equal bands: Low, Medium, and High.',
+    explanation:
+      'This is a transparent rule-based categorisation rather than a black-box model. In this dissertation, lower RDI districts are interpreted as more vulnerable to poverty-related deprivation, so the grouping works as a simple regional clustering layer.',
+    records,
+    summary: (['Low', 'Medium', 'High'] as PovertyClusterCategory[]).map((category) => ({
+      category,
+      count: records.filter((record) => record.category === category).length,
+      interpretation: interpretationByCategory[category],
+    })),
+  };
+}
+
+function fitYearToPovertyRegression(points: Array<{ year: number; povertyRate: number }>) {
+  const count = points.length;
+  const meanYear = points.reduce((sum, point) => sum + point.year, 0) / count;
+  const meanRate = points.reduce((sum, point) => sum + point.povertyRate, 0) / count;
+
+  let numerator = 0;
+  let denominator = 0;
+
+  for (const point of points) {
+    numerator += (point.year - meanYear) * (point.povertyRate - meanRate);
+    denominator += (point.year - meanYear) ** 2;
+  }
+
+  const slope = denominator === 0 ? 0 : numerator / denominator;
+  const intercept = meanRate - slope * meanYear;
+
+  return { slope, intercept };
+}
+
+function buildPovertyPrediction(): PovertyPredictionResponse {
+  const historicalSeries = readHistoricalPovertyTrend()
+    .map((point) => ({
+      year: getRepresentativeYear(point.period),
+      povertyRate: point.percentage,
+      label: point.period,
+    }))
+    .filter((point): point is { year: number; povertyRate: number; label: string } => point.year !== null);
+
+  const { slope, intercept } = fitYearToPovertyRegression(historicalSeries);
+  const latestHistoricalYear = historicalSeries.at(-1)?.year ?? new Date().getFullYear();
+  const forecastYears = Array.from({ length: 5 }, (_, index) => latestHistoricalYear + index + 1);
+  const forecast = forecastYears.map((year) => ({
+    year,
+    povertyRate: Number((intercept + slope * year).toFixed(2)),
+  }));
+
+  return {
+    title: 'Five-Year Poverty Projection',
+    method: 'Simple linear regression using survey year as the predictor and relative poverty rate as the response.',
+    explanation:
+      'This forecast is intentionally lightweight and transparent. It uses the observed poverty trend from SQLite, fits a straight line through the historical survey years, and projects the next five years as a baseline continuation rather than a full economic scenario.',
+    slope: Number(slope.toFixed(4)),
+    intercept: Number(intercept.toFixed(4)),
+    latestHistoricalYear,
+    forecastYears,
+    chartSeries: [
+      ...historicalSeries.map((point, index) => ({
+        year: point.year,
+        label: point.label,
+        historical: point.povertyRate,
+        predicted: index === historicalSeries.length - 1 ? point.povertyRate : null,
+      })),
+      ...forecast.map((point) => ({
+        year: point.year,
+        label: String(point.year),
+        historical: null,
+        predicted: point.povertyRate,
+      })),
+    ],
+    forecast,
+  };
 }
 
 const legacyCharts: AnalyticsChartAsset[] = [
@@ -242,6 +369,7 @@ export function getAnalyticsSummary(): AnalyticsResponse {
   const regressionSeries = readRegressionSeries();
   const predictionSeries = readPredictionSeries();
   const demographicBreakdowns = readDemographicBreakdowns();
+  const povertyGrouping = groupRegionalValuesByTertile(readRegionalAnalyticsSeries());
   const povertySeries = regressionSeries.map((row) => row.povertyRate);
   const variables = variableConfig.map((config) => config.variable);
   const matrixDimensions = [
@@ -353,7 +481,12 @@ export function getAnalyticsSummary(): AnalyticsResponse {
     actualPredictedSeries,
     correlationMatrix,
     scatterSeries,
+    povertyGrouping,
     demographicBreakdowns,
     legacyCharts,
   };
+}
+
+export function getAnalyticsPrediction(): PovertyPredictionResponse {
+  return buildPovertyPrediction();
 }

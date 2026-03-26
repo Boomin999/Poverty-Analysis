@@ -7,6 +7,8 @@ export interface CorrelationInsight {
   strength: 'weak' | 'moderate' | 'strong';
 }
 
+export type PovertyClusterCategory = 'Low' | 'Medium' | 'High';
+
 export interface RegressionCoefficient {
   variable: string;
   coefficient: number;
@@ -72,6 +74,54 @@ export interface ActualPredictedPoint {
   predicted: number;
 }
 
+export interface PovertyClusterRecord {
+  region: string;
+  value: number;
+  unit: string;
+  year: number;
+  rank: number;
+  category: PovertyClusterCategory;
+  interpretation: string;
+}
+
+export interface PovertyClusterSummary {
+  category: PovertyClusterCategory;
+  count: number;
+  interpretation: string;
+}
+
+export interface PovertyGrouping {
+  title: string;
+  basis: string;
+  explanation: string;
+  records: PovertyClusterRecord[];
+  summary: PovertyClusterSummary[];
+}
+
+export interface PovertyPredictionChartPoint {
+  year: number;
+  label: string;
+  historical: number | null;
+  predicted: number | null;
+}
+
+export interface PovertyPredictionValue {
+  year: number;
+  povertyRate: number;
+}
+
+export interface PovertyPredictionResponse {
+  title: string;
+  method: string;
+  explanation: string;
+  slope: number;
+  intercept: number;
+  latestHistoricalYear: number;
+  forecastYears: number[];
+  chartSeries: PovertyPredictionChartPoint[];
+  forecast: PovertyPredictionValue[];
+}
+
 export interface AnalyticsResponse {
   title: string;
   summary: string;
@@ -86,6 +136,7 @@ export interface AnalyticsResponse {
   actualPredictedSeries: ActualPredictedPoint[];
   correlationMatrix: CorrelationMatrixCell[];
   scatterSeries: ScatterSeries[];
+  povertyGrouping: PovertyGrouping;
   demographicBreakdowns: DemographicBreakdown[];
   legacyCharts: AnalyticsChartAsset[];
 }

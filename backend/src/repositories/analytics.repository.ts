@@ -1,4 +1,10 @@
-import type { DemographicBreakdown, PredictionPoint, RegressionObservation } from '../../../shared/api/index.ts';
+import type {
+  DashboardRegionSnapshot,
+  DemographicBreakdown,
+  PredictionPoint,
+  RegressionObservation,
+  RelativePovertyTrendPoint,
+} from '../../../shared/api/index.ts';
 import { getDatabase } from '../db/connection.ts';
 
 export function readRegressionSeries(): RegressionObservation[] {
@@ -45,4 +51,18 @@ export function readDemographicBreakdowns(): DemographicBreakdown[] {
   });
 
   return [...sections.values()];
+}
+
+export function readHistoricalPovertyTrend(): RelativePovertyTrendPoint[] {
+  const db = getDatabase();
+  return db
+    .prepare('SELECT period, percentage, number FROM poverty_trend ORDER BY sort_order')
+    .all() as unknown as RelativePovertyTrendPoint[];
+}
+
+export function readRegionalAnalyticsSeries(): DashboardRegionSnapshot[] {
+  const db = getDatabase();
+  return db
+    .prepare('SELECT region, value, unit, year, note, rank FROM regional_stats ORDER BY rank')
+    .all() as unknown as DashboardRegionSnapshot[];
 }

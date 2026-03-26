@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   CheckCircle2,
+  Layers3,
   Sigma,
   TrendingUp,
 } from 'lucide-react';
@@ -21,8 +22,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { AnalyticsResponse, CorrelationMatrixCell, ScatterSeries } from '../../shared/api';
-import { fetchAnalytics } from './lib/api';
+import type {
+  AnalyticsResponse,
+  CorrelationMatrixCell,
+  PovertyClusterCategory,
+  PovertyPredictionResponse,
+  ScatterSeries,
+} from '../../shared/api';
+import { fetchAnalytics, fetchAnalyticsPrediction } from './lib/api';
 import { Layout } from './components/Layout';
 import { Card, Headline, Label } from './components/UI';
 
@@ -158,6 +165,60 @@ function getVariableInsight(
   };
 }
 
+function getClusterBadgeClasses(category: PovertyClusterCategory) {
+  if (category === 'Low') {
+    return 'bg-orange-600 text-white border border-orange-700 dark:bg-orange-500 dark:border-orange-400/50 dark:text-white';
+  }
+
+  if (category === 'Medium') {
+    return 'bg-amber-500 text-slate-950 border border-amber-600 dark:bg-amber-400 dark:border-amber-300/50 dark:text-slate-950';
+  }
+
+  return 'bg-emerald-600 text-white border border-emerald-700 dark:bg-emerald-500 dark:border-emerald-400/50 dark:text-white';
+}
+
+function getClusterDisplayLabel(category: PovertyClusterCategory) {
+  if (category === 'Low') {
+    return 'High Vulnerability';
+  }
+
+  if (category === 'Medium') {
+    return 'Moderate Vulnerability';
+  }
+
+  return 'Low Vulnerability';
+}
+
+function getClusterCardText(category: PovertyClusterCategory) {
+  if (category === 'Low') {
+    return 'This district is more vulnerable to poverty because its development level is relatively lower in the current RDI grouping.';
+  }
+
+  if (category === 'Medium') {
+    return 'This district sits in the middle vulnerability band, showing mixed development conditions compared with the rest of the country.';
+  }
+
+  return 'This district is relatively better developed and therefore less vulnerable to poverty in the current grouping.';
+}
+
+function getGroupingInsight(
+  records: Array<{ region: string; category: PovertyClusterCategory }>,
+) {
+  const highVulnerability = records
+    .filter((record) => record.category === 'Low')
+    .slice(0, 2)
+    .map((record) => record.region);
+  const lowVulnerability = records
+    .filter((record) => record.category === 'High')
+    .slice(0, 2)
+    .map((record) => record.region);
+
+  const highText = highVulnerability.length > 0 ? highVulnerability.join(' and ') : 'the lower-ranked districts';
+  const lowText = lowVulnerability.length > 0 ? lowVulnerability.join(' and ') : 'the stronger-performing districts';
+
+  return `Districts such as ${highText} fall into the higher vulnerability group, indicating comparatively lower development levels. By contrast, districts such as ${lowText} are better positioned and fall into the lower vulnerability group.`;
+}
+
 function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile: boolean }) {
   const xDomain = getNumericDomain(
     [...series.points.map((point) => point.x), ...series.trendLine.map((point) => point.x)],
@@ -231,7 +292,9 @@ function MiniScatterCard({ series, isMobile }: { series: ScatterSeries; isMobile
 
 const Analytics = () => {
   const [data, setData] = React.useState<AnalyticsResponse | null>(null);
+  const [prediction, setPrediction] = React.useState<PovertyPredictionResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [predictionError, setPredictionError] = React.useState<string | null>(null);
   const [selectedVariable, setSelectedVariable] = React.useState<string | null>(null);
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false,
@@ -249,6 +312,18 @@ const Analytics = () => {
       .catch((requestError: Error) => {
         if (isMounted) {
           setError(requestError.message);
+        }
+      });
+
+    fetchAnalyticsPrediction()
+      .then((response) => {
+        if (isMounted) {
+          setPrediction(response);
+        }
+      })
+      .catch((requestError: Error) => {
+        if (isMounted) {
+          setPredictionError(requestError.message);
         }
       });
 
@@ -283,6 +358,7 @@ const Analytics = () => {
   const predictionSeries = React.useMemo(() => data?.predictionSeries ?? [], [data]);
   const regressionSeries = React.useMemo(() => data?.regressionSeries ?? [], [data]);
   const scatterSeriesList = React.useMemo(() => data?.scatterSeries ?? [], [data]);
+  const povertyGrouping = React.useMemo(() => data?.povertyGrouping ?? null, [data]);
 
   React.useEffect(() => {
     if (!data) {
@@ -372,6 +448,13 @@ const Analytics = () => {
           </Card>
         )}
 
+        {predictionError && (
+          <Card className="border border-error/20">
+            <Headline level={3} className="mb-2">Prediction unavailable</Headline>
+            <p className="text-sm text-on-surface/60">{predictionError}</p>
+          </Card>
+        )}
+
         {data ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -417,6 +500,195 @@ const Analytics = () => {
                 ))}
               </div>
             </Card>
+
+            {prediction && (
+              <Card className="p-5 sm:p-8">
+                <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                  <div>
+                    <div className="mb-6 flex items-center gap-3 text-primary">
+                      <TrendingUp size={20} />
+                      <Headline level={2}>{prediction.title}</Headline>
+                    </div>
+                    <p className="text-sm leading-relaxed text-on-surface/60">{prediction.explanation}</p>
+                    <div className="mt-6 h-[260px] sm:h-[340px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={prediction.chartSeries} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                          <XAxis
+                            dataKey="label"
+                            axisLine={false}
+                            tickLine={false}
+                            interval={0}
+                            minTickGap={isMobile ? 18 : 4}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 8 : 11 }}
+                          />
+                          <YAxis
+                            width={isMobile ? 28 : 40}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: '1px solid rgba(148, 163, 184, 0.2)',
+                              backgroundColor: 'var(--app-surface-container-lowest)',
+                            }}
+                          />
+                          {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                          <Line
+                            type="monotone"
+                            dataKey="historical"
+                            name={isMobile ? 'Historical' : 'Historical poverty'}
+                            stroke="var(--app-primary)"
+                            strokeWidth={3}
+                            dot={{ r: 4 }}
+                            connectNulls={false}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="predicted"
+                            name={isMobile ? 'Predicted' : 'Predicted poverty'}
+                            stroke="#b45309"
+                            strokeWidth={3}
+                            strokeDasharray="7 4"
+                            dot={{ r: 3 }}
+                            connectNulls
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Prediction Method</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{prediction.method}</p>
+                    </div>
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Next Five Years</p>
+                      <div className="mt-4 space-y-3">
+                        {prediction.forecast.map((point) => (
+                          <div key={point.year} className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                            <span className="text-sm font-medium">{point.year}</span>
+                            <span className="text-sm font-semibold text-primary">{point.povertyRate.toFixed(2)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">How To Defend It</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        This is a baseline forecast, not a complex scenario model. It uses the existing historical poverty trend already stored in SQLite and applies a straight-line regression from year to poverty rate.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {povertyGrouping && (
+              <Card className="p-5 sm:p-8">
+                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                  <div>
+                    <div className="mb-6 flex items-center gap-3 text-primary">
+                      <Layers3 size={20} />
+                      <Headline level={2}>{povertyGrouping.title}</Headline>
+                    </div>
+                    <p className="text-sm leading-relaxed text-on-surface/60">
+                      The Relative Development Index (RDI) is used here as a simple proxy for regional development level. Lower RDI values indicate weaker socioeconomic conditions and therefore higher vulnerability to poverty, while higher RDI values indicate relatively stronger development conditions and lower vulnerability.
+                    </p>
+                    <div className="mt-6 h-[240px] sm:h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={povertyGrouping.summary.map((entry) => ({
+                            ...entry,
+                            displayLabel: getClusterDisplayLabel(entry.category),
+                          }))}
+                          margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
+                        >
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                          <XAxis
+                            dataKey="displayLabel"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                          />
+                          <YAxis
+                            allowDecimals={false}
+                            width={isMobile ? 28 : 40}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                          />
+                          <Tooltip
+                            formatter={(value: number) => [value, 'Districts']}
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: '1px solid rgba(148, 163, 184, 0.2)',
+                              backgroundColor: 'var(--app-surface-container-lowest)',
+                            }}
+                          />
+                          <Bar dataKey="count" radius={[10, 10, 0, 0]}>
+                            {povertyGrouping.summary.map((entry) => (
+                              <Cell
+                                key={entry.category}
+                                fill={
+                                  entry.category === 'Low'
+                                    ? '#c2410c'
+                                    : entry.category === 'Medium'
+                                      ? '#ca8a04'
+                                      : '#059669'
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">
+                        Distribution of districts by poverty vulnerability level
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        Districts are grouped into three bands so the map-related regional differences can be interpreted more clearly at a glance.
+                      </p>
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Grouping Basis</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">{povertyGrouping.basis}</p>
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Key Insight</p>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                        {getGroupingInsight(povertyGrouping.records)}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">District Results</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {povertyGrouping.records.map((record) => (
+                        <div key={record.region} className="rounded-2xl border border-outline-variant bg-surface-container-low px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-on-surface">{record.region}</p>
+                            <span
+                              className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold sm:px-3 sm:text-xs ${getClusterBadgeClasses(record.category)}`}
+                            >
+                              {getClusterDisplayLabel(record.category)}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-sm text-on-surface/60">
+                            <span>RDI score</span>
+                            <span className="font-semibold text-primary">{record.value.toFixed(1)}</span>
+                          </div>
+                          <p className="mt-3 text-sm leading-relaxed text-on-surface/60">{getClusterCardText(record.category)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-6 sm:gap-8">
               <Card className="p-5 sm:p-8">

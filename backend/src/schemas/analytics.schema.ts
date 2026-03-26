@@ -1,6 +1,32 @@
 import { z } from 'zod';
 import { demographicBreakdownSchema } from './dashboard.schema.ts';
 
+const clusterCategorySchema = z.enum(['Low', 'Medium', 'High']);
+
+export const povertyPredictionResponseSchema = z.object({
+  title: z.string().min(1),
+  method: z.string().min(1),
+  explanation: z.string().min(1),
+  slope: z.number(),
+  intercept: z.number(),
+  latestHistoricalYear: z.number().int(),
+  forecastYears: z.array(z.number().int()),
+  chartSeries: z.array(
+    z.object({
+      year: z.number().int(),
+      label: z.string().min(1),
+      historical: z.number().nullable(),
+      predicted: z.number().nullable(),
+    }),
+  ),
+  forecast: z.array(
+    z.object({
+      year: z.number().int(),
+      povertyRate: z.number(),
+    }),
+  ),
+});
+
 export const analyticsResponseSchema = z.object({
   title: z.string().min(1),
   summary: z.string().min(1),
@@ -85,6 +111,29 @@ export const analyticsResponseSchema = z.object({
       ),
     }),
   ),
+  povertyGrouping: z.object({
+    title: z.string().min(1),
+    basis: z.string().min(1),
+    explanation: z.string().min(1),
+    records: z.array(
+      z.object({
+        region: z.string().min(1),
+        value: z.number(),
+        unit: z.string().min(1),
+        year: z.number().int(),
+        rank: z.number().int(),
+        category: clusterCategorySchema,
+        interpretation: z.string().min(1),
+      }),
+    ),
+    summary: z.array(
+      z.object({
+        category: clusterCategorySchema,
+        count: z.number().int(),
+        interpretation: z.string().min(1),
+      }),
+    ),
+  }),
   demographicBreakdowns: z.array(demographicBreakdownSchema),
   legacyCharts: z.array(
     z.object({

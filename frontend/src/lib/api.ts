@@ -7,6 +7,7 @@ import type {
   DatasetListResponse,
   DatasetPreviewResponse,
   MapResponse,
+  PovertyPredictionResponse,
 } from '../../../shared/api';
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -46,6 +47,10 @@ export async function askChat(request: ChatRequest) {
 
 export async function fetchAnalytics() {
   return parseResponse<AnalyticsResponse>(await fetch('/api/analytics'));
+}
+
+export async function fetchAnalyticsPrediction() {
+  return parseResponse<PovertyPredictionResponse>(await fetch('/api/analytics/prediction'));
 }
 
 export async function fetchMapData() {
