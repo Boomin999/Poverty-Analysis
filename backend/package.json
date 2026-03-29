@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@google/genai": "^1.47.0",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",

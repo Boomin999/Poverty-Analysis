@@ -13,6 +13,7 @@ const databaseDirectory = path.join(dataDirectory, 'database');
 export const env = {
   mode: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.API_PORT ?? 3001),
+  geminiApiKey: process.env.GEMINI_API_KEY ?? '',
   paths: {
     backendRoot,
     data: dataDirectory,

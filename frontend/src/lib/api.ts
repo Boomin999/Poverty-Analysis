@@ -37,9 +37,7 @@ export async function askChat(request: ChatRequest) {
   return parseResponse<ChatResponse>(
     await fetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     }),
   );

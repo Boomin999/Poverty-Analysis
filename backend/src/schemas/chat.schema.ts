@@ -1,13 +1,20 @@
 import { z } from 'zod';
 
+export const chatHistoryEntrySchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string().min(1),
+});
+
 export const chatRequestSchema = z.object({
   question: z.string().trim().min(1),
   datasetId: z.string().trim().min(1).optional(),
+  history: z.array(chatHistoryEntrySchema).optional(),
 });
 
 export const chatSourceSchema = z.object({
   title: z.string().min(1),
-  file: z.string().min(1),
+  file: z.string().optional(),
+  uri: z.string().optional(),
   page: z.number().int().optional(),
 });
 

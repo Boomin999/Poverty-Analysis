@@ -1,68 +1,75 @@
+import { GoogleGenAI } from '@google/genai';
 import type { ChatRequest, ChatResponse } from '../../../shared/api/index.ts';
-import { readPovertyTrend } from '../repositories/dashboard.repository.ts';
+import { env } from '../config/env.ts';
+import {
+  readDemographicHighlights,
+  readPovertyTrend,
+  readRegionalStats,
+  readSupportingMetrics,
+} from '../repositories/dashboard.repository.ts';
 
-function toDataPoint(point: { period: string; percentage: number; number: number }) {
-  return {
-    period: point.period,
-    percentage: point.percentage,
-    number: point.number,
-  };
+function buildDataContext(): string {
+  const trend = readPovertyTrend();
+  const metrics = readSupportingMetrics();
+  const demographics = readDemographicHighlights();
+  const regional = readRegionalStats();
+
+  return JSON.stringify({ trend, metrics, demographics, regional }, null, 2);
 }
 
-export function answerQuestion({ question }: ChatRequest): ChatResponse {
-  const trend = readPovertyTrend();
-  const normalizedQuestion = question.toLowerCase();
-  const matchedPeriods = trend.map((point) => point.period).filter((period) => question.includes(period));
-  const trendByPeriod = new Map(trend.map((point) => [point.period, point]));
+const SYSTEM_INSTRUCTION = `You are a poverty data analyst assistant for the Poverty Analysis Portal — a dashboard built on official poverty statistics.
 
-  if (matchedPeriods.length >= 2) {
-    const first = trendByPeriod.get(matchedPeriods[0]);
-    const second = trendByPeriod.get(matchedPeriods[1]);
+You have access to the following live dashboard data:
 
-    if (first && second) {
-      const delta = Number((second.percentage - first.percentage).toFixed(1));
-      const direction = delta < 0 ? 'decreased' : delta > 0 ? 'increased' : 'stayed the same';
+${buildDataContext()}
 
-      return {
-        answer: `Relative poverty ${direction} from ${first.percentage}% in ${first.period} to ${second.percentage}% in ${second.period}. The estimated number of persons moved from ${first.number} thousand to ${second.number} thousand over the same period.`,
-        sources: [
-          {
-            title: 'Poverty Analysis Report 2023',
-            file: 'backend/data/raw/poverty_reports/Poverty_Analysis_Report _2023.pdf',
-          },
-        ],
-        dataPoints: [toDataPoint(first), toDataPoint(second)],
-      };
+Rules:
+- Answer questions about poverty trends, demographics, regional disparities, economic indicators, and social welfare topics.
+- When answering from the data above, cite specific numbers, periods, and regions.
+- If a question cannot be answered from the data alone, use Google Search to find relevant information (e.g. global poverty context, policy comparisons, economic research).
+- Refuse questions that are completely unrelated to poverty, economics, or social welfare.
+- Keep answers concise, factual, and grounded in evidence.`;
+
+export async function answerQuestion(request: ChatRequest): Promise<ChatResponse> {
+  if (!env.geminiApiKey) {
+    throw new Error('GEMINI_API_KEY is not configured on the server.');
+  }
+
+  const ai = new GoogleGenAI({ apiKey: env.geminiApiKey });
+
+  const history = (request.history ?? []).map((entry) => ({
+    role: entry.role as 'user' | 'model',
+    parts: [{ text: entry.content }],
+  }));
+
+  const contents = [...history, { role: 'user' as const, parts: [{ text: request.question }] }];
+
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        tools: [{ googleSearch: {} }],
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`AI service error: ${message}`);
+  }
+
+  const answer = response.text ?? 'No response received.';
+
+  const sources: ChatResponse['sources'] = [];
+  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  if (chunks) {
+    for (const chunk of chunks) {
+      if (chunk.web?.uri) {
+        sources.push({ title: chunk.web.title ?? chunk.web.uri, uri: chunk.web.uri });
+      }
     }
   }
 
-  if (normalizedQuestion.includes('trend') || normalizedQuestion.includes('relative poverty')) {
-    const latest = trend[trend.length - 1];
-    const peak = trend.reduce((currentPeak, point) => point.percentage > currentPeak.percentage ? point : currentPeak, trend[0]);
-
-    return {
-      answer: `The latest point in the series is ${latest.percentage}% in ${latest.period}, representing ${latest.number} thousand persons. The highest relative poverty rate in the charted series is ${peak.percentage}% in ${peak.period}.`,
-      sources: [
-        {
-          title: 'Relative Poverty Time Series',
-          file: 'backend/data/processed/poverty_trend.json',
-        },
-        {
-          title: 'Poverty Analysis Report 2023',
-          file: 'backend/data/raw/poverty_reports/Poverty_Analysis_Report _2023.pdf',
-        },
-      ],
-      dataPoints: [toDataPoint(latest), toDataPoint(peak)],
-    };
-  }
-
-  return {
-    answer: 'I can currently answer questions about the relative poverty trend, changes between survey years, the latest values, and the report references supporting the dashboard.',
-    sources: [
-      {
-        title: 'Relative Poverty Time Series',
-        file: 'backend/data/processed/poverty_trend.json',
-      },
-    ],
-  };
+  return { answer, sources };
 }

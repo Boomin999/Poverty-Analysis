@@ -1,11 +1,18 @@
+export interface ChatHistoryEntry {
+  role: 'user' | 'model';
+  content: string;
+}
+
 export interface ChatRequest {
   question: string;
   datasetId?: string;
+  history?: ChatHistoryEntry[];
 }
 
 export interface ChatSource {
   title: string;
-  file: string;
+  file?: string;
+  uri?: string;
   page?: number;
 }
 
