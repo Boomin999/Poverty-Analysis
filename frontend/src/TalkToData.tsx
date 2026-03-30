@@ -32,7 +32,7 @@ function readStoredMessages() {
   }
 
   try {
-    const raw = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(CHAT_STORAGE_KEY);
     if (!raw) {
       return DEFAULT_MESSAGES;
     }
@@ -50,7 +50,7 @@ function readStoredHistory() {
   }
 
   try {
-    const raw = window.localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
     if (raw) {
       return JSON.parse(raw) as ChatHistoryEntry[];
     }
@@ -83,7 +83,7 @@ const TalkToData = () => {
       return;
     }
 
-    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    window.sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
   }, [messages]);
 
   const handleSend = async () => {
@@ -103,7 +103,7 @@ const TalkToData = () => {
         { role: 'model', content: response.answer },
       ];
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(historyRef.current));
+        window.sessionStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(historyRef.current));
       }
 
       setMessages((prev) => [

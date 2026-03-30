@@ -8,17 +8,22 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const srcDirectory = path.resolve(currentDirectory, '..');
 const backendRoot = path.resolve(srcDirectory, '..');
 const dataDirectory = path.join(backendRoot, 'data');
-const databaseDirectory = path.join(dataDirectory, 'database');
+const databaseDirectory = process.env.DATABASE_DIR
+  ? path.resolve(process.env.DATABASE_DIR)
+  : path.join(dataDirectory, 'database');
+const sqlitePath = process.env.SQLITE_PATH
+  ? path.resolve(process.env.SQLITE_PATH)
+  : path.join(databaseDirectory, 'poverty-insights.sqlite');
 
 export const env = {
   mode: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.API_PORT ?? 3001),
+  port: Number(process.env.PORT ?? process.env.API_PORT ?? 3001),
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
   paths: {
     backendRoot,
     data: dataDirectory,
     database: databaseDirectory,
-    sqlite: path.join(databaseDirectory, 'poverty-insights.sqlite'),
+    sqlite: sqlitePath,
     raw: path.join(dataDirectory, 'raw'),
     processed: path.join(dataDirectory, 'processed'),
     spreadsheets: path.join(dataDirectory, 'raw', 'spreadsheets'),
