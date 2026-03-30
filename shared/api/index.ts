@@ -17,7 +17,7 @@ export type {
   DatasetPreviewColumn,
   DatasetPreviewResponse,
 } from './dataset.ts';
-export type { ChatRequest, ChatResponse, ChatSource } from './chat.ts';
+export type { ChatHistoryEntry, ChatRequest, ChatResponse, ChatSource } from './chat.ts';
 export type {
   ActualPredictedPoint,
   AnalyticsResponse,
@@ -32,6 +32,9 @@ export type {
   PovertyPredictionResponse,
   PovertyPredictionValue,
   ConsecutiveTrendChange,
+  DistrictPovertyProfile,
+  LocalPovertyArea,
+  LocalPovertyEvidence,
   PredictionPoint,
   RegionalInsightDistrict,
   RegionalInsights,

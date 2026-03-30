@@ -15,23 +15,76 @@ interface ChatMessage {
   sources?: ChatSource[];
 }
 
+const CHAT_STORAGE_KEY = 'poverty-insights-chat-messages';
+const CHAT_HISTORY_STORAGE_KEY = 'poverty-insights-chat-history';
+const DEFAULT_MESSAGES: ChatMessage[] = [
+  {
+    id: 1,
+    role: 'bot',
+    content:
+      "Welcome to Poverty Insights. Ask about the relative poverty trend, demographic breakdowns, regional disparities, or any poverty-related topic â€” I can also search the web if the data doesn't cover it.",
+  },
+];
+
+function readStoredMessages() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_MESSAGES;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) {
+      return DEFAULT_MESSAGES;
+    }
+
+    const parsed = JSON.parse(raw) as ChatMessage[];
+    return parsed.length > 0 ? parsed : DEFAULT_MESSAGES;
+  } catch {
+    return DEFAULT_MESSAGES;
+  }
+}
+
+function readStoredHistory() {
+  if (typeof window === 'undefined') {
+    return [] as ChatHistoryEntry[];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    if (raw) {
+      return JSON.parse(raw) as ChatHistoryEntry[];
+    }
+
+    const storedMessages = readStoredMessages();
+    return storedMessages
+      .filter((message) => message.id !== 1)
+      .map((message) => ({
+        role: message.role === 'user' ? ('user' as const) : ('model' as const),
+        content: message.content,
+      }));
+  } catch {
+    return [] as ChatHistoryEntry[];
+  }
+}
+
 const TalkToData = () => {
-  const [messages, setMessages] = React.useState<ChatMessage[]>([
-    {
-      id: 1,
-      role: 'bot',
-      content:
-        "Welcome to Poverty Insights. Ask about the relative poverty trend, demographic breakdowns, regional disparities, or any poverty-related topic — I can also search the web if the data doesn't cover it.",
-    },
-  ]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>(() => readStoredMessages());
   const [input, setInput] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
-  const historyRef = React.useRef<ChatHistoryEntry[]>([]);
+  const historyRef = React.useRef<ChatHistoryEntry[]>(readStoredHistory());
   const bottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -49,6 +102,9 @@ const TalkToData = () => {
         { role: 'user', content: question },
         { role: 'model', content: response.answer },
       ];
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(historyRef.current));
+      }
 
       setMessages((prev) => [
         ...prev,

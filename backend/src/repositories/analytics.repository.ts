@@ -1,11 +1,15 @@
 import type {
+  DistrictPovertyProfile,
   DashboardRegionSnapshot,
   DemographicBreakdown,
+  LocalPovertyArea,
   PredictionPoint,
   RegressionObservation,
   RelativePovertyTrendPoint,
 } from '../../../shared/api/index.ts';
 import { getDatabase } from '../db/connection.ts';
+import { getProcessedDataPath } from '../utils/data-paths.utils.ts';
+import { readJsonFile } from '../utils/file.utils.ts';
 
 export function readRegressionSeries(): RegressionObservation[] {
   const db = getDatabase();
@@ -65,4 +69,12 @@ export function readRegionalAnalyticsSeries(): DashboardRegionSnapshot[] {
   return db
     .prepare('SELECT region, value, unit, year, note, rank FROM regional_stats ORDER BY rank')
     .all() as unknown as DashboardRegionSnapshot[];
+}
+
+export function readLocalPovertyAreaSeries(): LocalPovertyArea[] {
+  return readJsonFile<LocalPovertyArea[]>(getProcessedDataPath('local_poverty_gini_200607.json'));
+}
+
+export function readDistrictPovertyProfiles(): DistrictPovertyProfile[] {
+  return readJsonFile<DistrictPovertyProfile[]>(getProcessedDataPath('district_poverty_200607.json'));
 }

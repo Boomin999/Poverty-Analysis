@@ -4,6 +4,7 @@ import type {
   AnalyticsChartAsset,
   CorrelationMatrixCell,
   CorrelationInsight,
+  LocalPovertyEvidence,
   PovertyClusterCategory,
   PovertyGrouping,
   PovertyPredictionResponse,
@@ -14,7 +15,9 @@ import type {
   TrendInsights,
 } from '../../../shared/api/index.ts';
 import {
+  readDistrictPovertyProfiles,
   readHistoricalPovertyTrend,
+  readLocalPovertyAreaSeries,
   readDemographicBreakdowns,
   readPredictionSeries,
   readRegionalAnalyticsSeries,
@@ -363,6 +366,47 @@ function buildRegionalInsights(): RegionalInsights {
   };
 }
 
+function buildLocalPovertyEvidence(): LocalPovertyEvidence {
+  const districtProfiles = readDistrictPovertyProfiles().filter((profile) => profile.district !== 'Rodrigues');
+  const localAreas = readLocalPovertyAreaSeries().filter((area) => area.district !== 'Rodrigues');
+  const highestPovertyDistricts = districtProfiles.slice(0, 3);
+  const lowestPovertyDistricts = [...districtProfiles].reverse().slice(0, 3).reverse();
+  const highestDistrict = districtProfiles[0];
+  const lowestDistrict = districtProfiles.at(-1) ?? highestDistrict;
+  const povertyGap = Number((highestDistrict.averagePovertyRate - lowestDistrict.averagePovertyRate).toFixed(2));
+  const povertyGiniCorrelation = Number(
+    pearsonCorrelation(
+      districtProfiles.map((profile) => profile.averagePovertyRate),
+      districtProfiles.map((profile) => profile.averageGini),
+    ).toFixed(3),
+  );
+  const localExtremes = [
+    ...localAreas.slice(0, 3),
+    ...localAreas.slice(-3).reverse(),
+  ];
+
+  return {
+    title: 'District Poverty and Inequality Profile (2006/07)',
+    explanation:
+      'This district-level view is derived from the municipal ward and village council area poverty table for 2006/07. Local rows were grouped into districts so the website can show a clearer district poverty profile instead of relying on screenshots of the full table.',
+    districtProfiles,
+    highestPovertyDistricts,
+    lowestPovertyDistricts,
+    localExtremes,
+    povertyGap,
+    povertyGiniCorrelation,
+    interpretation:
+      povertyGiniCorrelation >= 0
+        ? `Across the derived district profiles, higher average poverty tends to align with higher inequality levels (r = ${povertyGiniCorrelation}). This supports the interpretation that poverty and unequal development should be discussed together.`
+        : `Across the derived district profiles, poverty and inequality do not move in the same direction consistently (r = ${povertyGiniCorrelation}). This suggests district poverty outcomes should be read alongside broader local conditions rather than only one inequality measure.`,
+    supportingPublication: {
+      title: 'Mauritius: Selected Issues (IMF Country Report No. 25/137)',
+      href: '/evidence/imf-mauritius-selected-issues-2025.pdf',
+      note: 'Used as a supporting policy and interpretation source for poverty and inequality discussion.',
+    },
+  };
+}
+
 function buildPovertyPrediction(): PovertyPredictionResponse {
   const historicalSeries = readHistoricalPovertyTrend()
     .map((point) => ({
@@ -458,6 +502,7 @@ export function getAnalyticsSummary(): AnalyticsResponse {
   const trendInsights = buildTrendInsights();
   const regionalInsights = buildRegionalInsights();
   const povertyGrouping = groupRegionalValuesByTertile(readRegionalAnalyticsSeries());
+  const localPovertyEvidence = buildLocalPovertyEvidence();
   const povertySeries = regressionSeries.map((row) => row.povertyRate);
   const variables = variableConfig.map((config) => config.variable);
   const matrixDimensions = [
@@ -572,6 +617,7 @@ export function getAnalyticsSummary(): AnalyticsResponse {
     trendInsights,
     regionalInsights,
     povertyGrouping,
+    localPovertyEvidence,
     demographicBreakdowns,
     legacyCharts,
   };

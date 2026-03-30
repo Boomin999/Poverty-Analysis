@@ -151,6 +151,40 @@ export interface RegionalInsights {
   summary: string;
 }
 
+export interface LocalPovertyArea {
+  area: string;
+  district: string;
+  rank: number;
+  povertyRate: number;
+  gini: number;
+}
+
+export interface DistrictPovertyProfile {
+  district: string;
+  areaCount: number;
+  averagePovertyRate: number;
+  averageGini: number;
+  minPovertyRate: number;
+  maxPovertyRate: number;
+}
+
+export interface LocalPovertyEvidence {
+  title: string;
+  explanation: string;
+  districtProfiles: DistrictPovertyProfile[];
+  highestPovertyDistricts: DistrictPovertyProfile[];
+  lowestPovertyDistricts: DistrictPovertyProfile[];
+  localExtremes: LocalPovertyArea[];
+  povertyGap: number;
+  povertyGiniCorrelation: number;
+  interpretation: string;
+  supportingPublication: {
+    title: string;
+    href: string;
+    note: string;
+  };
+}
+
 export interface PovertyPredictionResponse {
   title: string;
   method: string;
@@ -180,6 +214,7 @@ export interface AnalyticsResponse {
   trendInsights: TrendInsights;
   regionalInsights: RegionalInsights;
   povertyGrouping: PovertyGrouping;
+  localPovertyEvidence: LocalPovertyEvidence;
   demographicBreakdowns: DemographicBreakdown[];
   legacyCharts: AnalyticsChartAsset[];
 }

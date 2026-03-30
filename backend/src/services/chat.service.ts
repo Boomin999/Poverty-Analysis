@@ -56,7 +56,7 @@ export async function answerQuestion(request: ChatRequest): Promise<ChatResponse
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`AI service error: ${message}`);
+    throw new Error(`AI service error: ${message}`, { cause: err });
   }
 
   const answer = response.text ?? 'No response received.';

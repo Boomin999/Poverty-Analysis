@@ -12,6 +12,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
   LineChart,
@@ -539,6 +540,7 @@ const Analytics = () => {
   const trendInsights = React.useMemo(() => data?.trendInsights ?? null, [data]);
   const regionalInsights = React.useMemo(() => data?.regionalInsights ?? null, [data]);
   const povertyGrouping = React.useMemo(() => data?.povertyGrouping ?? null, [data]);
+  const localPovertyEvidence = React.useMemo(() => data?.localPovertyEvidence ?? null, [data]);
   const trendInsightLine = React.useMemo(
     () => (trendInsights ? getTrendInsightLine(trendInsights) : null),
     [trendInsights],
@@ -1456,6 +1458,145 @@ const Analytics = () => {
                 </div>
               </div>
             </Card>
+
+            {localPovertyEvidence && (
+              <Card className="p-5 sm:p-8">
+                <Headline level={2} className="mb-3">{localPovertyEvidence.title}</Headline>
+                <p className="text-sm leading-relaxed text-on-surface/60">
+                  {localPovertyEvidence.explanation}
+                </p>
+                <div className="mt-4 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Interpretation</p>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                    {localPovertyEvidence.interpretation}
+                  </p>
+                </div>
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Average District Poverty and Inequality</p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface/60">
+                      Bars show average poverty rate by district, while the line shows the corresponding average Gini coefficient from the same grouped table.
+                    </p>
+                    <div className="mt-5 h-[300px] sm:h-[360px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={localPovertyEvidence.districtProfiles} margin={{ top: 8, right: 8, bottom: 10, left: 0 }}>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                          <XAxis
+                            dataKey="district"
+                            axisLine={false}
+                            tickLine={false}
+                            interval={0}
+                            angle={isMobile ? -28 : -18}
+                            textAnchor="end"
+                            height={isMobile ? 64 : 52}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                          />
+                          <YAxis
+                            yAxisId="left"
+                            axisLine={false}
+                            tickLine={false}
+                            width={isMobile ? 30 : 44}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                            tickFormatter={(value: number) => `${value.toFixed(0)}%`}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            axisLine={false}
+                            tickLine={false}
+                            width={isMobile ? 36 : 46}
+                            domain={[0.2, 0.36]}
+                            tick={{ fill: 'var(--app-on-surface)', fontSize: isMobile ? 9 : 11 }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: '1px solid rgba(148, 163, 184, 0.2)',
+                              backgroundColor: 'var(--app-surface-container-lowest)',
+                            }}
+                            formatter={(value: number, name: string) => [
+                              name === 'Average poverty rate' ? `${value.toFixed(2)}%` : value.toFixed(3),
+                              name,
+                            ]}
+                          />
+                          {!isMobile && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                          <Bar yAxisId="left" dataKey="averagePovertyRate" name="Average poverty rate" radius={[8, 8, 0, 0]} fill="var(--app-primary-container)" />
+                          <Line yAxisId="right" type="monotone" dataKey="averageGini" name="Average Gini" stroke="#b45309" strokeWidth={3} dot={{ r: 3 }} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Highest District Poverty</p>
+                      <div className="mt-4 space-y-3">
+                        {localPovertyEvidence.highestPovertyDistricts.map((district) => (
+                          <div key={district.district} className="rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-sm font-medium text-on-surface">{district.district}</span>
+                              <span className="text-sm font-semibold text-primary">{district.averagePovertyRate.toFixed(2)}%</span>
+                            </div>
+                            <p className="mt-1 text-xs text-on-surface/50">
+                              {district.areaCount} local areas | Avg Gini {district.averageGini.toFixed(3)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Lowest District Poverty</p>
+                      <div className="mt-4 space-y-3">
+                        {localPovertyEvidence.lowestPovertyDistricts.map((district) => (
+                          <div key={district.district} className="rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-sm font-medium text-on-surface">{district.district}</span>
+                              <span className="text-sm font-semibold text-primary">{district.averagePovertyRate.toFixed(2)}%</span>
+                            </div>
+                            <p className="mt-1 text-xs text-on-surface/50">
+                              {district.areaCount} local areas | Avg Gini {district.averageGini.toFixed(3)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">District Poverty Gap</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{localPovertyEvidence.povertyGap.toFixed(2)} pts</p>
+                    <p className="mt-2 text-sm text-on-surface/60">
+                      Difference between the districts with the highest and lowest average poverty rates in the grouped 2006/07 table.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Poverty vs Gini (Districts)</p>
+                    <p className="mt-2 text-3xl font-display font-bold text-primary">{localPovertyEvidence.povertyGiniCorrelation.toFixed(3)}</p>
+                    <p className="mt-2 text-sm text-on-surface/60">
+                      Pearson correlation using the derived district averages for poverty rate and Gini coefficient.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Supporting Publication</p>
+                    <p className="mt-2 text-sm font-medium text-on-surface">{localPovertyEvidence.supportingPublication.title}</p>
+                    <p className="mt-2 text-sm text-on-surface/60">{localPovertyEvidence.supportingPublication.note}</p>
+                  </div>
+                </div>
+                <div className="mt-6 rounded-2xl border border-outline-variant bg-surface-container-low px-5 py-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-on-surface/45">Local Extremes Used In The Roll-up</p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {localPovertyEvidence.localExtremes.map((area) => (
+                      <div key={`${area.rank}-${area.area}`} className="rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
+                        <p className="text-sm font-medium text-on-surface">{area.area}</p>
+                        <p className="mt-1 text-xs text-on-surface/50">{area.district}</p>
+                        <p className="mt-2 text-sm text-primary font-semibold">{area.povertyRate.toFixed(1)}% poverty</p>
+                        <p className="text-xs text-on-surface/50">Gini {area.gini.toFixed(3)} | Rank {area.rank}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             <Card className="p-5 sm:p-8">
               <div className="mx-auto max-w-6xl">

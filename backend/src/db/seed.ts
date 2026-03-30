@@ -231,6 +231,15 @@ const datasetCatalog: DatasetCatalogRow[] = [
     description: 'Official RDI publication used to support the district vulnerability analysis.',
   },
   {
+    id: 'imf-selected-issues-2025',
+    name: 'Mauritius: Selected Issues (IMF 2025)',
+    format: 'pdf',
+    records: 4,
+    lastUpdated: '2026-03-30',
+    source: 'International Monetary Fund',
+    description: 'IMF Selected Issues paper used as a supporting source for poverty, inequality, and fiscal policy interpretation.',
+  },
+  {
     id: 'rdi-2011-workbook',
     name: 'RDI 2011 Workbook',
     format: 'xlsx',
@@ -666,6 +675,12 @@ function readDatasetPreviews(): DatasetPreviewResponse[] {
       { section: 'Use in project', summary: 'Supports district vulnerability, map, and regional ranking analysis.' },
       { section: 'Type', summary: 'Regional development report.' },
       { section: 'Source', summary: 'Statistics Mauritius.' },
+    ]),
+    buildPdfPreview(catalogById.get('imf-selected-issues-2025')!, [
+      { section: 'Coverage', summary: 'IMF country report section focused on Mauritius poverty and inequality issues.' },
+      { section: 'Use in project', summary: 'Used as a supporting policy and interpretation source for poverty, inequality, and fiscal policy discussion.' },
+      { section: 'Relevant themes', summary: 'Includes recent trends in poverty and inequality and discussion of addressing poverty through fiscal policy.' },
+      { section: 'Source', summary: 'International Monetary Fund.' },
     ]),
     buildTabularPreview(
       catalogById.get('rdi-2011-workbook')!,

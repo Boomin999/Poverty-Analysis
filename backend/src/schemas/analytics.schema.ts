@@ -179,6 +179,57 @@ export const analyticsResponseSchema = z.object({
       }),
     ),
   }),
+  localPovertyEvidence: z.object({
+    title: z.string().min(1),
+    explanation: z.string().min(1),
+    districtProfiles: z.array(
+      z.object({
+        district: z.string().min(1),
+        areaCount: z.number().int(),
+        averagePovertyRate: z.number(),
+        averageGini: z.number(),
+        minPovertyRate: z.number(),
+        maxPovertyRate: z.number(),
+      }),
+    ),
+    highestPovertyDistricts: z.array(
+      z.object({
+        district: z.string().min(1),
+        areaCount: z.number().int(),
+        averagePovertyRate: z.number(),
+        averageGini: z.number(),
+        minPovertyRate: z.number(),
+        maxPovertyRate: z.number(),
+      }),
+    ),
+    lowestPovertyDistricts: z.array(
+      z.object({
+        district: z.string().min(1),
+        areaCount: z.number().int(),
+        averagePovertyRate: z.number(),
+        averageGini: z.number(),
+        minPovertyRate: z.number(),
+        maxPovertyRate: z.number(),
+      }),
+    ),
+    localExtremes: z.array(
+      z.object({
+        area: z.string().min(1),
+        district: z.string().min(1),
+        rank: z.number().int(),
+        povertyRate: z.number(),
+        gini: z.number(),
+      }),
+    ),
+    povertyGap: z.number(),
+    povertyGiniCorrelation: z.number(),
+    interpretation: z.string().min(1),
+    supportingPublication: z.object({
+      title: z.string().min(1),
+      href: z.string().min(1),
+      note: z.string().min(1),
+    }),
+  }),
   demographicBreakdowns: z.array(demographicBreakdownSchema),
   legacyCharts: z.array(
     z.object({

@@ -25,6 +25,7 @@ const filePathByDatasetId: Record<string, string | null> = {
   'poverty-analysis-2023': getRawPovertyReportPath('Poverty_Analysis_Report _2023.pdf'),
   'relative-development-index-1990': getRawPovertyReportPath('Relative Development Index 1990.pdf'),
   'relative-development-index-2022': getRawPovertyReportPath('Relative Development Index 2022.pdf'),
+  'imf-selected-issues-2025': 'C:\\Users\\Admin\\Desktop\\Final Year Project\\frontend\\public\\evidence\\imf-mauritius-selected-issues-2025.pdf',
   'rdi-2011-workbook': getRawSpreadsheetPath('RDI2011.xlsx'),
   'rdi-2022-clean-workbook': getRawSpreadsheetPath('rdi_2022_clean_final.xlsx'),
   'rdi-comparison-workbook': getRawSpreadsheetPath('rdi_comparison_clean.xlsx'),
