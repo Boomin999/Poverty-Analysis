@@ -11,7 +11,20 @@ import type {
 } from '../../../shared/api';
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  const payload = await response.json();
+  const raw = await response.text();
+  let payload: unknown = null;
+
+  if (raw) {
+    try {
+      payload = JSON.parse(raw) as unknown;
+    } catch {
+      if (!response.ok) {
+        throw new Error('The server returned an unexpected response.');
+      }
+
+      throw new Error('Unable to read the server response.');
+    }
+  }
 
   if (!response.ok) {
     const apiError = payload as ApiError;

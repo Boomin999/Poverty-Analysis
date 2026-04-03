@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createApiError } from '../utils/error.utils.ts';
+import { env } from '../config/env.ts';
+import { AppError, createApiError } from '../utils/error.utils.ts';
 import { logError } from '../utils/logger.utils.ts';
 import { SchemaValidationError } from '../utils/validation.utils.ts';
 
@@ -19,10 +20,41 @@ export function errorMiddleware(
     return;
   }
 
+  if (error instanceof AppError) {
+    logError('Handled application error.', {
+      code: error.code,
+      statusCode: error.statusCode,
+      message: error.message,
+    });
+    res.status(error.statusCode).json(createApiError(error.code, error.message));
+    return;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.too.large'
+  ) {
+    res.status(413).json(createApiError('PAYLOAD_TOO_LARGE', 'The request body is too large.'));
+    return;
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.parse.failed'
+  ) {
+    res.status(400).json(createApiError('INVALID_JSON', 'The request body could not be parsed as JSON.'));
+    return;
+  }
+
   logError('Unhandled backend error.', error);
 
-  const message =
-    error instanceof Error
+  const message = env.mode === 'production'
+    ? 'An unexpected server error occurred.'
+    : error instanceof Error
       ? error.message
       : 'An unexpected backend error occurred.';
 

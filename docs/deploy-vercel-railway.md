@@ -7,7 +7,9 @@ Frontend on Vercel, backend on Railway
 - Set environment variables:
   - `NODE_ENV=production`
   - `GEMINI_API_KEY=...`
+  - optional `CORS_ORIGINS=https://your-vercel-domain.vercel.app`
 - The backend now supports Railway's `PORT` automatically.
+- Local `.env` files should not be committed. Use `backend/.env.example` as the safe reference.
 
 2. Persistent SQLite
 - Add a Railway volume and mount it to a stable path.

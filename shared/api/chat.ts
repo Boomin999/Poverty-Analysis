@@ -5,7 +5,6 @@ export interface ChatHistoryEntry {
 
 export interface ChatRequest {
   question: string;
-  datasetId?: string;
   history?: ChatHistoryEntry[];
 }
 

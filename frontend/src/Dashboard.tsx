@@ -232,6 +232,9 @@ const Dashboard = () => {
             </Card>
           )}
         </section>
+        <p className="-mt-6 text-sm text-on-surface/50">
+          Supporting indicators come from the latest available cleaned series for each measure, so the reference year shown on each card should be read alongside the headline 2023 poverty update.
+        </p>
 
         <section>
           <div className="mb-6">
@@ -483,14 +486,13 @@ const Dashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {data?.publications.map((publication) => (
-              <Card key={publication.id} className="group hover:translate-y-[-4px] transition-transform">
-                <div className="flex justify-between items-start mb-6">
+              <Card key={publication.id}>
+                <div className="mb-6">
                   <span className="px-3 py-1 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full">
                     {publication.category}
                   </span>
-                  <ArrowUpRight size={20} className="text-on-surface/20 group-hover:text-primary transition-colors" />
                 </div>
-                <Headline level={3} className="mb-3 group-hover:text-primary transition-colors">
+                <Headline level={3} className="mb-3">
                   {publication.title}
                 </Headline>
                 <p className="text-sm text-on-surface/60 mb-6 line-clamp-3">

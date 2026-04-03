@@ -7,7 +7,6 @@ export const chatHistoryEntrySchema = z.object({
 
 export const chatRequestSchema = z.object({
   question: z.string().trim().min(1),
-  datasetId: z.string().trim().min(1).optional(),
   history: z.array(chatHistoryEntrySchema).optional(),
 });
 

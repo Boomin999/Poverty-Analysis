@@ -1,9 +1,9 @@
 import React from 'react';
-import { Download, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import type { DatasetListItem, DatasetPreviewResponse } from '../../shared/api';
 import { fetchDatasetPreview, fetchDatasets } from './lib/api';
 import { Layout } from './components/Layout';
-import { Headline, Card, Label, Button } from './components/UI';
+import { Headline, Card, Label } from './components/UI';
 
 function getUsageLabel(datasetId: string) {
   if (datasetId.includes('rdi') || datasetId.includes('district') || datasetId.includes('boundaries')) {
@@ -82,7 +82,7 @@ const DatasetExplorer = () => {
           <Label className="mb-2 block">Structured Data Layer</Label>
           <Headline level={1} className="mb-4">Datasets</Headline>
           <p className="text-on-surface/60 max-w-2xl">
-            This section provides a preview of the structured datasets used in the analysis. It supports transparency and reproducibility by showing sample columns and records derived from the source publications.
+            This section provides an overview of the structured datasets used in the analysis. It supports transparency and reproducibility by showing the table structure and a small on-screen sample derived from the source publications.
           </p>
           {!isLoadingDatasets && datasets.length > 0 && (
             <p className="mt-3 text-sm text-on-surface/50">
@@ -145,9 +145,6 @@ const DatasetExplorer = () => {
                       </div>
                     </div>
                   </div>
-                  <Button variant="secondary" className="px-4 py-2 w-fit">
-                    <Download size={16} className="mr-2 inline" /> Data Preview
-                  </Button>
                 </div>
 
                 <div className="flex-1 overflow-auto">
@@ -158,7 +155,7 @@ const DatasetExplorer = () => {
                   ) : preview ? (
                     <div>
                       <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
-                        <Label>Data Preview</Label>
+                        <Label>Sample Records</Label>
                       </div>
                       <table className="w-full text-left text-xs">
                         <thead className="bg-surface-container sticky top-0">
@@ -197,7 +194,7 @@ const DatasetExplorer = () => {
                 </div>
                 <Headline level={3} className="text-on-surface/40">Select a dataset to review</Headline>
                 <p className="text-sm text-on-surface/30 mt-2 max-w-xs">
-                  Choose a dataset from the dropdown above to inspect its metadata and sample records.
+                  Choose a dataset from the dropdown above to inspect its metadata and view a small on-screen sample.
                 </p>
               </div>
             )}

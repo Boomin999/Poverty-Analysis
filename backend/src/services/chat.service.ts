@@ -7,6 +7,7 @@ import {
   readRegionalStats,
   readSupportingMetrics,
 } from '../repositories/dashboard.repository.ts';
+import { AppError } from '../utils/error.utils.ts';
 
 function buildDataContext(): string {
   const trend = readPovertyTrend();
@@ -17,7 +18,7 @@ function buildDataContext(): string {
   return JSON.stringify({ trend, metrics, demographics, regional }, null, 2);
 }
 
-const SYSTEM_INSTRUCTION = `You are a poverty data analyst assistant for the Poverty Analysis Portal — a dashboard built on official poverty statistics.
+const SYSTEM_INSTRUCTION = `You are a poverty data analyst assistant for the Poverty Analysis Portal, a dashboard built on official poverty statistics.
 
 You have access to the following live dashboard data:
 
@@ -26,13 +27,17 @@ ${buildDataContext()}
 Rules:
 - Answer questions about poverty trends, demographics, regional disparities, economic indicators, and social welfare topics.
 - When answering from the data above, cite specific numbers, periods, and regions.
-- If a question cannot be answered from the data alone, use Google Search to find relevant information (e.g. global poverty context, policy comparisons, economic research).
+- If a question cannot be answered from the data alone, use Google Search to find relevant information (for example global poverty context, policy comparisons, or economic research).
 - Refuse questions that are completely unrelated to poverty, economics, or social welfare.
 - Keep answers concise, factual, and grounded in evidence.`;
 
 export async function answerQuestion(request: ChatRequest): Promise<ChatResponse> {
   if (!env.geminiApiKey) {
-    throw new Error('GEMINI_API_KEY is not configured on the server.');
+    throw new AppError(
+      503,
+      'CHAT_UNAVAILABLE',
+      'The AI assistant is temporarily unavailable. Please try again shortly.',
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey: env.geminiApiKey });
@@ -54,9 +59,15 @@ export async function answerQuestion(request: ChatRequest): Promise<ChatResponse
         tools: [{ googleSearch: {} }],
       },
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`AI service error: ${message}`, { cause: err });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new AppError(
+      502,
+      'AI_SERVICE_ERROR',
+      env.mode === 'production'
+        ? 'The AI assistant could not generate a response right now. Please try again.'
+        : `AI service error: ${message}`,
+    );
   }
 
   const answer = response.text ?? 'No response received.';

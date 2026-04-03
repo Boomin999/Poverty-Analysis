@@ -1,20 +1,40 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Poverty Insights Frontend
 
-# Run and deploy your AI Studio app
+This frontend is the React + TypeScript interface for the Mauritius poverty analysis dissertation project.
 
-This contains everything you need to run your app locally.
+## Purpose
 
-View your app in AI Studio: https://ai.studio/apps/27b4ae6a-510f-49bd-ba0f-ff5a27151489
+It presents:
+- dashboard indicators and source publications
+- analytics and forecast outputs
+- district map views
+- dataset previews for transparency and reproducibility
+- the Gemini-backed `Talk to Data` assistant
 
-## Run Locally
+## Local development
 
-**Prerequisites:**  Node.js
+From the `frontend` directory:
 
+```bash
+npm install
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+This starts Vite and proxies API requests to the backend during local development.
+
+## Build
+
+```bash
+npm install
+npm run build
+```
+
+The production build output is written to `dist/`.
+
+## Deployment
+
+- Frontend: Vercel
+- Backend API: Railway
+- API proxy rewrite: configured in `vercel.json`
+
+See the project-level deployment notes in `../docs/deploy-vercel-railway.md`.
